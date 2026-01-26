@@ -132,6 +132,10 @@ export interface AppContextType {
   addRecurring: (r: RecurringTransaction) => void;
   updateRecurring: (r: RecurringTransaction) => void;
   deleteRecurring: (id: string) => void;
+  addCard: (c: CreditCard) => void;
+  updateCard: (c: CreditCard) => void;
+  deleteCard: (id: string) => void;
   setActiveTab: (tab: string) => void;
   notify: (message: string) => void;
+  confirmDelete: (item: any, type: string) => void;
 }

@@ -1,12 +1,12 @@
 
 import React, { useContext, useState, useMemo } from 'react';
 import { AppContext } from '../App';
-import { BankAccount, Transaction, ReconciliationMarker, TransactionType, Frequency } from '../types';
+import { BankAccount, Transaction, ReconciliationMarker, TransactionType, Frequency, AppContextType } from '../types';
 import { Plus, Trash2, Edit2, X, Info, ArrowRight, ArrowUpDown, Target, Repeat, Wallet, CreditCard, Check } from 'lucide-react';
 import IconPicker from './IconPicker';
 
 const Accounts: React.FC = () => {
-  const context = useContext(AppContext) as any;
+  const context = useContext(AppContext) as AppContextType;
   const { accounts, transactions, recurring, categories, goals, addAccount, confirmDelete, updateAccount, updateTransaction, addTransaction } = context;
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState<'add' | 'edit' | null>(null);
@@ -175,87 +175,6 @@ const Accounts: React.FC = () => {
     });
   }, [selectedAccount, transactions, sortConfig]);
 
-  const stats = useMemo(() => {
-    if (!selectedAccount) return null;
-    
-    const soldeReel = calculateRealBalance(selectedAccount);
-    const transC = processedTransactions.find(t => t.reconciliation === ReconciliationMarker.C);
-    const soldeC = transC ? (transC as any).runningBalance : 0;
-
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-    const tomorrow = new Date(currentYear, currentMonth, now.getDate() + 1);
-    const endOfMonth = new Date(currentYear, currentMonth + 1, 0);
-
-    const recurringRemaining = recurring
-      .filter((r: any) => !r.isPaused && String(r.sourceAccountId) === String(selectedAccount.id))
-      .reduce((sum: number, r: any) => {
-        const start = new Date(r.startDate);
-        const end = r.endDate ? new Date(r.endDate) : null;
-        let occurrencesRemaining = 0;
-
-        const isAlreadyPaidInJournal = (date: Date) => {
-            return transactions.some((t: Transaction) => 
-              String(t.sourceAccountId) === String(r.sourceAccountId) &&
-              t.categoryId === r.categoryId &&
-              Math.abs((t.expense || t.revenue) - r.amount) < 0.1 &&
-              new Date(t.date).getMonth() === date.getMonth() &&
-              new Date(t.date).getFullYear() === date.getFullYear()
-            );
-        };
-
-        if (r.frequency === Frequency.MONTHLY) {
-          const occurrenceThisMonth = new Date(currentYear, currentMonth, start.getDate());
-          if (occurrenceThisMonth >= tomorrow && occurrenceThisMonth <= endOfMonth) {
-            if (!end || occurrenceThisMonth <= end) {
-                if (!isAlreadyPaidInJournal(occurrenceThisMonth)) occurrencesRemaining = 1;
-            }
-          }
-        } else if (r.frequency === Frequency.WEEKLY) {
-          let tempDate = new Date(start);
-          while (tempDate <= endOfMonth) {
-            if (tempDate >= tomorrow && tempDate <= endOfMonth) {
-              if (!end || tempDate <= end) {
-                  if (!isAlreadyPaidInJournal(tempDate)) occurrencesRemaining++;
-              }
-            }
-            tempDate.setDate(tempDate.getDate() + 7);
-          }
-        } else if (r.frequency === Frequency.DAILY) {
-          let tempDate = new Date(tomorrow > start ? tomorrow : start);
-          while (tempDate <= endOfMonth) {
-            if (!end || tempDate <= end) {
-                const alreadyOnThisDay = transactions.some((t: Transaction) => 
-                    String(t.sourceAccountId) === String(r.sourceAccountId) &&
-                    t.categoryId === r.categoryId &&
-                    Math.abs((t.expense || t.revenue) - r.amount) < 0.1 &&
-                    t.date === tempDate.toISOString().split('T')[0]
-                );
-                if (!alreadyOnThisDay) occurrencesRemaining++;
-            }
-            tempDate.setDate(tempDate.getDate() + 1);
-          }
-        } else if (r.frequency === Frequency.YEARLY) {
-          const occurrenceThisYear = new Date(currentYear, start.getMonth(), start.getDate());
-          if (occurrenceThisYear.getMonth() === currentMonth && occurrenceThisYear >= tomorrow && occurrenceThisYear <= endOfMonth) {
-            if (!end || occurrenceThisYear <= end) {
-                if (!isAlreadyPaidInJournal(occurrenceThisYear)) occurrencesRemaining = 1;
-            }
-          }
-        }
-
-        return sum + (occurrencesRemaining * r.amount);
-      }, 0);
-
-    return {
-      soldeReel,
-      soldeC,
-      recurringRemaining,
-      difference: (selectedAccount.bankBalanceManual || 0) - (selectedAccount.cardOutstandingManual || 0)
-    };
-  }, [selectedAccount, processedTransactions, transactions, recurring]);
-
   const requestSort = (key: string) => {
     let direction: 'asc' | 'desc' = 'asc';
     if (sortConfig.key === key && sortConfig.direction === 'asc') {
@@ -271,14 +190,14 @@ const Accounts: React.FC = () => {
       {!selectedAccountId ? (
         <>
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Mes Comptes</h2>
+            <h2 className="text-2xl font-bold text-slate-800 tracking-tight uppercase">Mes Comptes</h2>
             <button 
               onClick={() => { 
                 setEditingAccount(null); 
                 setFormData({ name: '', icon: '🏦', color: '#6366f1', initialBalance: 0, isPrincipal: false, bankBalanceManual: 0, cardOutstandingManual: 0 }); 
                 setShowForm('add'); 
               }} 
-              className="px-6 py-3 bg-gradient-to-r from-blue-500 to-pink-500 text-white rounded-2xl shadow-xl font-bold hover:scale-[1.02] active:scale-95 transition-all flex items-center"
+              className="px-6 py-3 bg-gradient-to-r from-blue-500 to-pink-500 text-white rounded-2xl shadow-xl font-black uppercase text-[10px] tracking-widest hover:scale-[1.02] active:scale-95 transition-all flex items-center"
             >
               <Plus size={18} className="mr-2" /> Nouveau Compte
             </button>
@@ -292,7 +211,7 @@ const Accounts: React.FC = () => {
                     <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl" style={{ backgroundColor: acc.color + '15', color: acc.color }}>{acc.icon}</div>
                     {acc.isPrincipal && <span className="px-3 py-1 bg-blue-100 text-blue-600 text-[10px] font-black rounded-xl uppercase tracking-widest">Principal</span>}
                   </div>
-                  <h3 className="font-black text-slate-800 text-xl tracking-tight">{acc.name}</h3>
+                  <h3 className="font-black text-slate-800 text-xl tracking-tight uppercase">{acc.name}</h3>
                   <p className={`text-3xl font-black mt-2 tracking-tighter ${realBalance < 0 ? 'text-rose-600' : 'text-slate-900'}`}>
                     {realBalance.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€
                   </p>
@@ -314,7 +233,7 @@ const Accounts: React.FC = () => {
       ) : (
         <div className="animate-in slide-in-from-right duration-500 space-y-6">
            <div className="flex items-center justify-between">
-              <button onClick={() => setSelectedAccountId(null)} className="text-xs font-bold text-slate-400 hover:text-blue-500 flex items-center bg-white px-4 py-3 rounded-xl shadow-sm border border-slate-100 uppercase tracking-widest transition-all">
+              <button onClick={() => setSelectedAccountId(null)} className="text-[10px] font-black text-slate-400 hover:text-blue-500 flex items-center bg-white px-4 py-3 rounded-xl shadow-sm border border-slate-100 uppercase tracking-widest transition-all">
                 ← Retour
               </button>
               <div className="flex items-center space-x-3 bg-white px-6 py-3 rounded-2xl border border-slate-100 shadow-sm">
@@ -339,20 +258,19 @@ const Accounts: React.FC = () => {
                 <div className="bg-gradient-to-br from-blue-600 to-pink-500 p-8 rounded-[2.5rem] shadow-2xl grid grid-cols-2 gap-6 relative overflow-hidden border border-white/10">
                   <StatItem label="Solde Compte bancaire" value={selectedAccount?.bankBalanceManual || 0} isManual onManualChange={(val) => updateAccount({...selectedAccount!, bankBalanceManual: val})} isInGradient />
                   <StatItem label="Encourt carte" value={selectedAccount?.cardOutstandingManual || 0} isManual onManualChange={(val) => updateAccount({...selectedAccount!, cardOutstandingManual: val})} isInGradient />
-                  <StatItem label="Différence" value={stats?.difference || 0} highlight={ (stats?.difference || 0) < 0 ? 'rose' : 'emerald' } isInGradient />
-                  <StatItem label="Solde Compte (Pointé C)" value={stats?.soldeC || 0} highlight="blue" isInGradient />
+                  <StatItem label="Différence" value={(selectedAccount?.bankBalanceManual || 0) - (selectedAccount?.cardOutstandingManual || 0)} highlight={ ((selectedAccount?.bankBalanceManual || 0) - (selectedAccount?.cardOutstandingManual || 0)) < 0 ? 'rose' : 'emerald' } isInGradient />
+                  <StatItem label="Solde Compte (Pointé C)" value={processedTransactions.find(t => t.reconciliation === ReconciliationMarker.C) ? (processedTransactions.find(t => t.reconciliation === ReconciliationMarker.C) as any).runningBalance : selectedAccount?.initialBalance || 0} highlight="blue" isInGradient />
                 </div>
 
                 <div className="bg-gradient-to-br from-blue-600 to-pink-500 p-8 rounded-[2.5rem] shadow-2xl grid grid-cols-3 gap-6 relative overflow-hidden border border-white/10">
-                  <StatItem label="Solde Réel" value={stats?.soldeReel || 0} isInGradient />
-                  <StatItem label="Récurrent" value={stats?.recurringRemaining || 0} highlight="amber" isInGradient />
-                  <StatItem label="Budget restant" value={(stats?.soldeReel || 0) - (stats?.recurringRemaining || 0)} highlight="emerald" isInGradient />
+                  <StatItem label="Solde Réel" value={calculateRealBalance(selectedAccount!)} isInGradient />
+                  <StatItem label="Budget restant" value={calculateRealBalance(selectedAccount!)} highlight="emerald" isInGradient />
                 </div>
              </div>
            ) : (
              <div className="flex justify-start">
                 <div className="bg-gradient-to-br from-blue-600 to-pink-500 p-8 px-12 rounded-[2.5rem] shadow-2xl relative overflow-hidden border border-white/10">
-                   <StatItem label="SOLDE RÉEL" value={stats?.soldeReel || 0} isInGradient />
+                   <StatItem label="SOLDE RÉEL" value={calculateRealBalance(selectedAccount!)} isInGradient />
                 </div>
              </div>
            )}
@@ -432,17 +350,17 @@ const Accounts: React.FC = () => {
       )}
 
       {showForm && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-md p-10 shadow-2xl animate-in zoom-in duration-200 flex flex-col relative overflow-visible border border-slate-100">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-md p-10 shadow-2xl animate-in zoom-in duration-200 flex flex-col relative border border-slate-100 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-8">
-              <h3 className="text-2xl font-black text-slate-900 tracking-tight">{showForm === 'add' ? 'Nouveau Compte' : 'Paramètres du Compte'}</h3>
+              <h3 className="text-2xl font-black text-slate-900 tracking-tight uppercase">{showForm === 'add' ? 'Nouveau Compte' : 'Configuration Compte'}</h3>
               <button onClick={() => { setShowForm(null); setEditingAccount(null); }} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={24}/></button>
             </div>
             
             <form onSubmit={handleSaveAccount} className="space-y-6">
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nom du compte</label>
-                <input type="text" required className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:border-blue-500 focus:bg-white outline-none font-bold transition-all" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="ex: Compte Courant" />
+                <input type="text" required className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:border-blue-500 focus:bg-white outline-none font-bold transition-all uppercase" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="ex: Compte Courant" />
               </div>
               
               <IconPicker value={formData.icon || '🏦'} onChange={(icon) => setFormData({ ...formData, icon })} />
@@ -468,86 +386,18 @@ const Accounts: React.FC = () => {
                 <button type="submit" className="flex-1 py-4 bg-slate-900 text-white font-bold rounded-2xl shadow-xl uppercase text-[10px] tracking-widest hover:scale-[1.02] active:scale-95 transition-transform">Enregistrer</button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
 
-      {showTransactionForm && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 backdrop-blur-md p-4 overflow-y-auto">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-2xl p-10 shadow-2xl animate-in zoom-in duration-200 border border-slate-100">
-            <div className="flex justify-between items-center mb-8">
-              <h3 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Saisir une Transaction</h3>
-              <button onClick={() => setShowTransactionForm(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={24}/></button>
-            </div>
-            
-            <form onSubmit={handleSaveTransaction} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</label>
-                <input type="date" required className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:border-blue-500 outline-none font-bold" value={tFormData.date} onChange={e => setTFormData({ ...tFormData, date: e.target.value })} />
+            {showForm === 'edit' && editingAccount && (
+              <div className="mt-8 pt-8 border-t border-slate-100 flex flex-col items-center">
+                <button 
+                  type="button" 
+                  onClick={() => { confirmDelete(editingAccount, 'account'); setShowForm(null); }}
+                  className="w-full py-4 bg-rose-50 text-rose-500 hover:bg-rose-100 font-black rounded-2xl uppercase text-[10px] tracking-widest border border-rose-100 flex items-center justify-center transition-all active:scale-95 shadow-sm"
+                >
+                  <Trash2 size={16} className="mr-2" /> Supprimer ce compte
+                </button>
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Type</label>
-                <select className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl outline-none font-bold focus:border-blue-500" value={tFormData.type} onChange={e => setTFormData({ ...tFormData, type: e.target.value as TransactionType, categoryId: '', subCategory: '' })}>
-                  <option value={TransactionType.EXPENSE}>Dépense</option>
-                  <option value={TransactionType.REVENUE}>Revenu</option>
-                  <option value={TransactionType.TRANSFER}>Transfert</option>
-                  <option value={TransactionType.GOAL_DEPOSIT}>Épargne 🎯</option>
-                </select>
-              </div>
-
-              {tFormData.type === TransactionType.GOAL_DEPOSIT && (
-                <div className="md:col-span-2 space-y-1">
-                  <label className="text-[10px] font-black text-pink-500 uppercase tracking-widest">Cible Épargne 🎯</label>
-                  <select required className="w-full px-6 py-4 bg-pink-50 border-2 border-pink-100 rounded-2xl outline-none font-bold" value={tFormData.targetGoalId} onChange={e => setTFormData({ ...tFormData, targetGoalId: e.target.value })}>
-                    <option value="">Sélectionner l'objectif...</option>
-                    {goals.map((g: any) => <option key={g.id} value={g.id}>{g.icon} {g.name}</option>)}
-                  </select>
-                </div>
-              )}
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mode de paiement</label>
-                <select className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl outline-none font-bold focus:border-blue-500" value={tFormData.paymentMethod} onChange={e => setTFormData({ ...tFormData, paymentMethod: e.target.value })}>
-                   <option value="Virement">Virement</option>
-                   <option value="Prélèvement">Prélèvement</option>
-                   <option value="Chèque">Chèque</option>
-                   <option value="Espèces">Espèces</option>
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Montant (€)</label>
-                <input type="number" step="0.01" required className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl text-2xl font-black focus:border-blue-500" value={tFormData.amount} onChange={e => setTFormData({ ...tFormData, amount: Number(e.target.value) })} />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Catégorie</label>
-                <select required className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl outline-none font-bold focus:border-blue-500" value={tFormData.categoryId} onChange={e => setTFormData({ ...tFormData, categoryId: e.target.value, subCategory: '' })}>
-                  <option value="">Sélectionner...</option>
-                  {categories.filter((c:any) => c.type === (tFormData.type === TransactionType.REVENUE ? 'REVENUE' : 'EXPENSE') || tFormData.type === TransactionType.TRANSFER).map((c: any) => (
-                    <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sous-Catégorie</label>
-                <select className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl outline-none font-bold focus:border-blue-500 disabled:opacity-50" value={tFormData.subCategory} onChange={e => setTFormData({ ...tFormData, subCategory: e.target.value })} disabled={!selectedTCategory}>
-                  <option value="">Aucune</option>
-                  {selectedTCategory?.subCategories?.map((s: string) => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-
-              <div className="md:col-span-2 space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Libellé / Description</label>
-                <input type="text" className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl outline-none font-bold transition-all" value={tFormData.description} onChange={e => setTFormData({ ...tFormData, description: e.target.value })} placeholder="ex: Courses" />
-              </div>
-
-              <div className="md:col-span-2 flex space-x-4 pt-4">
-                <button type="button" onClick={() => setShowTransactionForm(false)} className="flex-1 py-4 font-black text-slate-400 uppercase text-[10px] tracking-widest hover:bg-slate-50 rounded-2xl transition-all border border-slate-100">Annuler</button>
-                <button type="submit" className="flex-1 py-4 font-bold bg-slate-900 text-white rounded-2xl shadow-xl hover:scale-[1.02] active:scale-95 transition-all uppercase text-[10px] tracking-widest">Enregistrer</button>
-              </div>
-            </form>
+            )}
           </div>
         </div>
       )}

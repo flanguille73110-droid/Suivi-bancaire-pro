@@ -16,11 +16,11 @@ import {
   Menu,
   X,
   BookOpen,
-  Code2,
   Trash2,
   AlertTriangle,
   CheckCircle2,
-  BarChart3
+  BarChart3,
+  RotateCcw
 } from 'lucide-react';
 import { 
   BankAccount, 
@@ -49,23 +49,22 @@ const INITIAL_ACCOUNTS: BankAccount[] = [
 
 export const AppContext = createContext<AppContextType | null>(null);
 
-const Layout: React.FC<{ children: React.ReactNode, activeTab: string, setTab: (t: string) => void }> = ({ children, activeTab, setTab }) => {
+const Layout: React.FC<{ children: React.ReactNode, activeTab: string, setTab: (t: string) => void, onOpenSettings: () => void }> = ({ children, activeTab, setTab, onOpenSettings }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'accounts', label: 'Comptes', icon: Wallet },
-    { id: 'cards', label: 'Cartes', icon: CardIcon },
-    { id: 'categories', label: 'Catégories', icon: Tag },
+    { id: 'comptes', label: 'Comptes', icon: Wallet },
+    { id: 'cartes', label: 'Cartes', icon: CardIcon },
+    { id: 'catégories', label: 'Catégories', icon: Tag },
     { id: 'transactions', label: 'Transactions', icon: ArrowRightLeft },
-    { id: 'recurring', label: 'Récurrentes', icon: Repeat },
-    { id: 'financial-analysis', label: 'Analyse financière', icon: BarChart3 },
+    { id: 'récurrentes', label: 'Récurrentes', icon: Repeat },
+    { id: 'analyse-financière', label: 'Analyse financière', icon: BarChart3 },
     { id: 'budgets', label: 'Budgets', icon: PieChart },
-    { id: 'goals', label: 'Objectifs', icon: Target },
+    { id: 'objectifs', label: 'Objectifs', icon: Target },
     { id: 'export', label: 'Export', icon: Download },
     { id: 'import', label: 'Import Excel', icon: Upload },
     { id: 'notice', label: 'Notice', icon: BookOpen },
-    { id: 'code', label: 'Code Source', icon: Code2 },
   ];
 
   return (
@@ -73,7 +72,7 @@ const Layout: React.FC<{ children: React.ReactNode, activeTab: string, setTab: (
       {!isSidebarOpen && <div className="fixed inset-0 bg-black/50 z-20 md:hidden" onClick={() => setIsSidebarOpen(true)} />}
       <aside className={`fixed md:relative z-30 flex flex-col w-64 h-full transition-transform duration-300 transform bg-white border-r border-slate-200 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
         <div className="flex items-center justify-between p-6 bg-gradient-to-r from-blue-600 to-pink-600 text-white shadow-lg">
-          <span className="text-xl font-bold tracking-tight">Suivi Bancaire</span>
+          <span className="text-xl font-bold tracking-tight uppercase">Suivi Bancaire</span>
           <button onClick={() => setIsSidebarOpen(false)} className="md:hidden"><X size={20} /></button>
         </div>
         <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto border-t border-slate-100">
@@ -92,10 +91,10 @@ const Layout: React.FC<{ children: React.ReactNode, activeTab: string, setTab: (
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="flex items-center justify-between px-6 py-4 bg-white border-b border-slate-200 shrink-0">
           <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 text-slate-600 md:hidden"><Menu size={24} /></button>
-          <div className="flex items-center space-x-4"><h1 className="text-xl font-semibold capitalize">{activeTab.replace('-', ' ')}</h1></div>
+          <div className="flex items-center space-x-4"><h1 className="text-xl font-black uppercase tracking-tight text-slate-800">{activeTab.replace('-', ' ')}</h1></div>
           <div className="flex items-center space-x-3">
-            <button className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors"><Settings size={20} /></button>
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-400 to-pink-400" />
+            <button onClick={onOpenSettings} className="p-2 text-slate-400 hover:text-blue-500 rounded-full hover:bg-blue-50 transition-all active:rotate-90"><Settings size={20} /></button>
+            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-400 to-pink-400 shadow-inner" />
           </div>
         </header>
         <section className="flex-1 overflow-y-auto p-6 scroll-smooth">{children}</section>
@@ -116,7 +115,6 @@ import Cards from './components/Cards';
 import Export from './components/Export';
 import ImportExcel from './components/ImportExcel';
 import Notice from './components/Notice';
-import CodeViewer from './components/CodeViewer';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -151,6 +149,7 @@ const App: React.FC = () => {
 
   const [notification, setNotification] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<any>(null);
   const [deleteType, setDeleteType] = useState<string>('');
 
@@ -168,86 +167,6 @@ const App: React.FC = () => {
     localStorage.setItem('sb_budgets', JSON.stringify(budgets));
     localStorage.setItem('sb_goals', JSON.stringify(goals));
   }, [accounts, transactions, categories, cards, recurring, budgets, goals]);
-
-  useEffect(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    let newTransactions: Transaction[] = [];
-    let updatedRecurringList = [...recurring];
-    let hasChanges = false;
-
-    updatedRecurringList = updatedRecurringList.map(rec => {
-      if (rec.isPaused) return rec;
-
-      const startDate = new Date(rec.startDate);
-      const endDate = rec.endDate ? new Date(rec.endDate) : null;
-      let lastProcessed = rec.lastProcessedDate ? new Date(rec.lastProcessedDate) : new Date(startDate);
-      
-      let nextDate = new Date(lastProcessed);
-      if (rec.lastProcessedDate) {
-          nextDate = getNextOccurrence(nextDate, rec.frequency as Frequency);
-      } else {
-          nextDate = new Date(startDate);
-      }
-
-      let currentRecProcessedDate = rec.lastProcessedDate || null;
-
-      while (nextDate <= today && (!endDate || nextDate <= endDate)) {
-        const dateStr = nextDate.toISOString().split('T')[0];
-        const nextDateObj = new Date(nextDate);
-        
-        const isAlreadyInJournal = transactions.some((t: Transaction) => 
-          String(t.sourceAccountId) === String(rec.sourceAccountId) &&
-          t.categoryId === rec.categoryId &&
-          Math.abs((t.expense || t.revenue) - rec.amount) < 0.1 &&
-          new Date(t.date).getMonth() === nextDateObj.getMonth() &&
-          new Date(t.date).getFullYear() === nextDateObj.getFullYear()
-        );
-
-        if (!isAlreadyInJournal) {
-          const t: Transaction = {
-            id: `auto-${rec.id}-${Date.now()}-${Math.random()}`,
-            date: dateStr,
-            categoryId: rec.categoryId,
-            subCategory: rec.subCategory,
-            description: `[Auto] ${rec.description}`,
-            sourceAccountId: rec.sourceAccountId,
-            destinationAccountId: rec.destinationAccountId,
-            paymentMethod: rec.paymentMethod,
-            type: rec.type,
-            revenue: rec.type === TransactionType.REVENUE ? rec.amount : 0,
-            expense: (rec.type === TransactionType.EXPENSE || rec.type === TransactionType.TRANSFER || rec.type === TransactionType.GOAL_DEPOSIT) ? rec.amount : 0,
-            reconciliation: ReconciliationMarker.NONE
-          };
-          newTransactions.push(t);
-        }
-        
-        currentRecProcessedDate = dateStr;
-        hasChanges = true;
-        nextDate = getNextOccurrence(nextDate, rec.frequency as Frequency);
-      }
-
-      return { ...rec, lastProcessedDate: currentRecProcessedDate || rec.lastProcessedDate };
-    });
-
-    if (hasChanges) {
-      if (newTransactions.length > 0) {
-        setTransactions(prev => [...newTransactions, ...prev]);
-        notify(`${newTransactions.length} transactions récurrentes générées.`);
-      }
-      setRecurring(updatedRecurringList);
-    }
-  }, []);
-
-  const getNextOccurrence = (date: Date, freq: Frequency): Date => {
-    const d = new Date(date);
-    if (freq === Frequency.DAILY) d.setDate(d.getDate() + 1);
-    else if (freq === Frequency.WEEKLY) d.setDate(d.getDate() + 7);
-    else if (freq === Frequency.MONTHLY) d.setMonth(d.getMonth() + 1);
-    else if (freq === Frequency.YEARLY) d.setFullYear(d.getFullYear() + 1);
-    return d;
-  };
 
   const confirmDelete = (item: any, type: string) => {
     setItemToDelete(item);
@@ -271,10 +190,18 @@ const App: React.FC = () => {
 
     setShowDeleteModal(false);
     setItemToDelete(null);
+    notify("Supprimé avec succès.");
+  };
+
+  const handleResetData = () => {
+    if (confirm("ATTENTION: Toutes vos données seront définitivement effacées. Continuer ?")) {
+      localStorage.clear();
+      window.location.reload();
+    }
   };
 
   const contextValue: AppContextType = {
-    accounts, transactions, categories, cards, recurring, budgets, goals, setActiveTab, notify,
+    accounts, transactions, categories, cards, recurring, budgets, goals, setActiveTab, notify, confirmDelete,
     addTransaction: (t: Transaction) => setTransactions(prev => [t, ...prev]),
     updateTransaction: (t: Transaction) => setTransactions(prev => prev.map(item => String(item.id) === String(t.id) ? t : item)),
     deleteTransaction: (id: string) => setTransactions(prev => prev.filter(t => String(t.id) !== id)),
@@ -293,30 +220,33 @@ const App: React.FC = () => {
     addRecurring: (r: RecurringTransaction) => setRecurring(prev => [...prev, r]),
     updateRecurring: (r: RecurringTransaction) => setRecurring(prev => prev.map(item => String(item.id) === String(r.id) ? r : item)),
     deleteRecurring: (id: string) => setRecurring(prev => prev.filter(r => String(r.id) !== id)),
+    addCard: (c: CreditCard) => setCards(prev => [...prev, c]),
+    updateCard: (c: CreditCard) => setCards(prev => prev.map(item => String(item.id) === String(c.id) ? c : item)),
+    deleteCard: (id: string) => setCards(prev => prev.filter(c => String(c.id) !== id)),
   };
 
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard': return <Dashboard />;
-      case 'accounts': return <Accounts />;
-      case 'cards': return <Cards />;
-      case 'categories': return <CategoriesView />;
+      case 'comptes': return <Accounts />;
+      case 'cartes': return <Cards />;
+      case 'catégories': return <CategoriesView />;
       case 'transactions': return <Transactions />;
-      case 'recurring': return <Recurring />;
-      case 'financial-analysis': return <FinancialAnalysis />;
+      case 'récurrentes': return <Recurring />;
+      case 'analyse-financière': return <FinancialAnalysis />;
       case 'budgets': return <Budgets />;
-      case 'goals': return <Goals />;
+      case 'objectifs': return <Goals />;
       case 'export': return <Export />;
       case 'import': return <ImportExcel />;
       case 'notice': return <Notice />;
-      case 'code': return <CodeViewer />;
       default: return <Dashboard />;
     }
   };
 
   return (
     <AppContext.Provider value={contextValue}>
-      <Layout activeTab={activeTab} setTab={setActiveTab}>{renderContent()}</Layout>
+      <Layout activeTab={activeTab} setTab={setActiveTab} onOpenSettings={() => setShowSettingsModal(true)}>{renderContent()}</Layout>
+      
       {notification && (
         <div className="fixed bottom-8 right-8 z-[250] animate-in slide-in-from-bottom duration-300">
           <div className="bg-slate-900 text-white px-6 py-4 rounded-2xl shadow-2xl border border-white/10 flex items-center space-x-3">
@@ -325,16 +255,46 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
+
+      {showSettingsModal && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-md p-10 shadow-2xl border border-slate-100 flex flex-col space-y-8 animate-in zoom-in duration-200">
+            <div className="flex justify-between items-center">
+              <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Paramètres Généraux</h3>
+              <button onClick={() => setShowSettingsModal(false)} className="p-2 hover:bg-slate-50 rounded-full transition-colors"><X size={24} /></button>
+            </div>
+            
+            <div className="space-y-6">
+              <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 space-y-4">
+                <div className="flex items-center space-x-3 text-slate-800">
+                  <RotateCcw size={20} className="text-blue-500" />
+                  <p className="font-bold uppercase text-xs tracking-widest">Maintenance des données</p>
+                </div>
+                <p className="text-xs text-slate-400 font-medium">Effacez l'intégralité de votre historique, comptes et catégories pour repartir de zéro.</p>
+                <button 
+                  onClick={handleResetData}
+                  className="w-full py-4 bg-rose-50 text-rose-500 hover:bg-rose-100 font-black rounded-2xl uppercase text-[10px] tracking-widest border border-rose-100 flex items-center justify-center transition-all active:scale-95 shadow-sm"
+                >
+                  Réinitialiser l'application
+                </button>
+              </div>
+            </div>
+
+            <button onClick={() => setShowSettingsModal(false)} className="w-full py-5 bg-slate-900 text-white font-black rounded-2xl shadow-xl uppercase text-[10px] tracking-widest hover:bg-slate-800 transition-all">Fermer</button>
+          </div>
+        </div>
+      )}
+
       {showDeleteModal && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="bg-white rounded-[2.5rem] w-full max-sm p-8 shadow-2xl border border-slate-100 flex flex-col items-center text-center space-y-6 animate-in zoom-in duration-200">
+        <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-sm p-8 shadow-2xl border border-slate-100 flex flex-col items-center text-center space-y-6 animate-in zoom-in duration-200">
             <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center shadow-inner">
               <AlertTriangle size={40} />
             </div>
             <div>
-              <h3 className="text-xl font-black text-slate-900 mb-2 uppercase tracking-tight">Confirmer la suppression</h3>
+              <h3 className="text-xl font-black text-slate-900 mb-2 uppercase tracking-tight">Supprimer ?</h3>
               <p className="text-slate-500 text-sm font-medium leading-relaxed">
-                Êtes-vous sûr de vouloir supprimer <span className="text-slate-900 font-bold">"{itemToDelete?.name || itemToDelete?.description || 'cet élément'}"</span> ?
+                Voulez-vous supprimer <span className="text-slate-900 font-bold">"{itemToDelete?.name || itemToDelete?.description || 'cet élément'}"</span> ?
               </p>
               <p className="text-[10px] text-rose-400 font-black uppercase mt-4 tracking-widest">Cette action est irréversible</p>
             </div>

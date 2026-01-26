@@ -33,7 +33,6 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-12">
-      {/* 1. Solde Total & Comptes (Section Héro) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 p-10 rounded-[3rem] bg-gradient-to-br from-blue-600 via-indigo-600 to-pink-500 text-white shadow-2xl shadow-blue-200 relative overflow-hidden group">
           <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10" />
@@ -82,7 +81,7 @@ const Dashboard: React.FC = () => {
           </div>
           <button 
             className="mt-8 flex items-center justify-center space-x-2 text-blue-600 text-xs font-black uppercase tracking-widest hover:text-blue-700 transition-colors"
-            onClick={() => context.setActiveTab('goals')}
+            onClick={() => context.setActiveTab('objectifs')}
           >
             <span>Gérer l'épargne</span>
             <ChevronRight size={14} />
@@ -90,7 +89,6 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. Alertes & Récurrentes */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-xl">
           <div className="flex items-center justify-between mb-8">

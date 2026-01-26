@@ -6,8 +6,8 @@ import { CreditCard as CardIcon, Plus, Trash2, Edit2, X } from 'lucide-react';
 import IconPicker from './IconPicker';
 
 const Cards: React.FC = () => {
-  const context = useContext(AppContext) as any;
-  const { cards, accounts, setCards, confirmDelete } = context;
+  const context = useContext(AppContext) as AppContextType;
+  const { cards, accounts, addCard, updateCard, confirmDelete } = context;
   
   const [showForm, setShowForm] = useState<'add' | 'edit' | null>(null);
   const [editingCard, setEditingCard] = useState<CreditCard | null>(null);
@@ -30,18 +30,20 @@ const Cards: React.FC = () => {
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.accountId) return;
-    let updatedCards = [...cards];
-    if (showForm === 'add') { updatedCards.push({ ...formData as CreditCard, id: Date.now().toString() }); }
-    else if (showForm === 'edit' && editingCard) { updatedCards = updatedCards.map(c => String(c.id) === String(editingCard.id) ? { ...editingCard, ...formData } : c); }
-    setCards(updatedCards);
+    
+    if (showForm === 'add') {
+      addCard({ ...formData as CreditCard, id: Date.now().toString() });
+    } else if (showForm === 'edit' && editingCard) {
+      updateCard({ ...editingCard, ...formData } as CreditCard);
+    }
     setShowForm(null);
   };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Mes Cartes Bancaires</h2>
-        <button onClick={handleOpenAdd} className="px-6 py-3 bg-gradient-to-r from-blue-500 to-pink-500 text-white rounded-2xl shadow-lg font-bold flex items-center hover:scale-[1.02] transition-transform"><Plus size={18} className="mr-2" /> Ajouter une Carte</button>
+        <h2 className="text-2xl font-bold text-slate-800 tracking-tight uppercase">Mes Cartes Bancaires</h2>
+        <button onClick={handleOpenAdd} className="px-6 py-3 bg-gradient-to-r from-blue-500 to-pink-500 text-white rounded-2xl shadow-lg font-black uppercase text-[10px] tracking-widest flex items-center hover:scale-[1.02] transition-transform active:scale-95"><Plus size={18} className="mr-2" /> Ajouter une Carte</button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -66,26 +68,27 @@ const Cards: React.FC = () => {
 
       {showForm && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-md p-10 shadow-2xl animate-in zoom-in duration-200 flex flex-col border border-slate-100">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-md p-10 shadow-2xl animate-in zoom-in duration-200 flex flex-col border border-slate-100 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-8">
-              <h3 className="text-2xl font-black text-slate-900 tracking-tight">{showForm === 'add' ? 'Nouvelle Carte' : 'Configuration Carte'}</h3>
+              <h3 className="text-2xl font-black text-slate-900 tracking-tight uppercase">{showForm === 'add' ? 'Nouvelle Carte' : 'Paramètres Carte'}</h3>
               <button onClick={() => setShowForm(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={24}/></button>
             </div>
             
             <form onSubmit={handleSave} className="space-y-6">
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nom affiché sur la carte</label>
-                <input type="text" required className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl outline-none font-bold focus:border-blue-500 transition-all" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="ex: VISA GOLD" />
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nom de la carte</label>
+                <input type="text" required className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl outline-none font-bold focus:border-blue-500 transition-all uppercase" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="ex: VISA GOLD" />
               </div>
               <IconPicker value={formData.icon || '💳'} onChange={(icon) => setFormData({ ...formData, icon })} />
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 gap-6">
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Couleur visuelle</label>
                   <input type="color" className="w-full h-14 p-1 bg-slate-50 border-2 border-transparent rounded-2xl outline-none" value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Compte Source</label>
-                  <select className="w-full px-4 h-14 bg-slate-50 border-2 border-transparent rounded-2xl outline-none font-bold focus:border-blue-500 transition-all" value={formData.accountId} onChange={e => setFormData({...formData, accountId: e.target.value})}>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Compte de rattachement</label>
+                  <select className="w-full px-5 h-14 bg-slate-50 border-2 border-transparent rounded-2xl outline-none font-bold focus:border-blue-500 transition-all uppercase" value={formData.accountId} onChange={e => setFormData({...formData, accountId: e.target.value})}>
+                    <option value="">Sélectionner un compte...</option>
                     {accounts.map((a:any) => <option key={a.id} value={a.id}>{a.name}</option>)}
                   </select>
                 </div>
