@@ -31,14 +31,14 @@ const CategoriesView: React.FC = () => {
 
   const handleAddSub = (cat: Category) => {
     if (!newSubName.trim()) return;
-    const updatedSubs = [...cat.subCategories, newSubName.trim()].sort((a, b) => a.localeCompare(b));
+    const updatedSubs = [...cat.subCategories, newSubName.trim()].sort((a: string, b: string) => a.localeCompare(b));
     updateCategory({ ...cat, subCategories: updatedSubs });
     setNewSubName("");
     setActiveSubInput(null);
   };
 
   const handleRemoveSub = (cat: Category, subName: string) => {
-    const filteredSubs = cat.subCategories.filter(s => s !== subName);
+    const filteredSubs = cat.subCategories.filter((s: string) => s !== subName);
     updateCategory({ ...cat, subCategories: filteredSubs });
   };
 
@@ -64,7 +64,7 @@ const CategoriesView: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {categories.map(cat => (
+        {categories.map((cat: Category) => (
           <div key={cat.id} className="group bg-white rounded-[2.5rem] border border-slate-100 shadow-xl overflow-hidden flex flex-col hover:shadow-2xl transition-all duration-300">
             <div className="p-6 flex items-center justify-between">
               <div className="flex items-center space-x-3">
@@ -105,7 +105,7 @@ const CategoriesView: React.FC = () => {
                 )}
               </div>
               <div className="flex flex-wrap gap-2">
-                {cat.subCategories.map((sub) => (
+                {cat.subCategories.map((sub: string) => (
                   <div key={`${cat.id}-${sub}`} className="flex items-center bg-slate-50 text-slate-700 rounded-xl text-[10px] font-black border border-slate-100 overflow-hidden shadow-sm uppercase tracking-tight">
                     <span className="px-3 py-2 border-r border-slate-100">{sub}</span>
                     <button onClick={() => handleRemoveSub(cat, sub)} className="p-2 text-slate-400 hover:text-white hover:bg-rose-500 transition-all"><X size={12} /></button>
@@ -151,21 +151,6 @@ const CategoriesView: React.FC = () => {
                 <button type="submit" className="flex-1 py-4 bg-slate-900 text-white font-bold rounded-2xl shadow-xl uppercase text-[10px] tracking-widest hover:scale-[1.02] active:scale-95 transition-transform">Enregistrer</button>
               </div>
             </form>
-
-            {showForm === 'edit' && editingCat && (
-              <div className="mt-8 pt-8 border-t border-slate-100 flex flex-col items-center">
-                <button 
-                  type="button" 
-                  onClick={() => {
-                    confirmDelete(editingCat, 'category');
-                    setShowForm(null);
-                  }}
-                  className="w-full py-4 bg-rose-50 text-rose-500 hover:bg-rose-100 font-black rounded-2xl uppercase text-[10px] tracking-widest border border-rose-100 flex items-center justify-center cursor-pointer active:scale-95 transition-all shadow-sm"
-                >
-                  <Trash2 size={16} className="mr-2" /> Supprimer définitivement
-                </button>
-              </div>
-            )}
           </div>
         </div>
       )}

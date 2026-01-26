@@ -47,7 +47,7 @@ const Accounts: React.FC = () => {
       String(t.destinationAccountId) === String(acc.id)
     );
     
-    return accTransactions.reduce((balance, t) => {
+    return accTransactions.reduce((balance: number, t: Transaction) => {
       if (String(t.sourceAccountId) === String(acc.id)) {
         return balance + t.revenue - t.expense;
       }
@@ -188,7 +188,6 @@ const Accounts: React.FC = () => {
     const tomorrow = new Date(currentYear, currentMonth, now.getDate() + 1);
     const endOfMonth = new Date(currentYear, currentMonth + 1, 0);
 
-    // Calcul synchronisé avec l'onglet Récurrentes : Reste à passer ce mois-ci
     const recurringRemaining = recurring
       .filter((r: any) => !r.isPaused && String(r.sourceAccountId) === String(selectedAccount.id))
       .reduce((sum: number, r: any) => {
@@ -324,7 +323,6 @@ const Accounts: React.FC = () => {
               </div>
            </div>
 
-           {/* BOUTON SAISIR TRANSACTION POUR COMPTE PRINCIPAL */}
            {selectedAccount?.isPrincipal && (
              <div className="flex justify-end">
                <button 
@@ -336,10 +334,8 @@ const Accounts: React.FC = () => {
              </div>
            )}
 
-           {/* INDICATEURS ENCADRÉS AVEC DÉGRADÉS */}
            {selectedAccount?.isPrincipal ? (
              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Encadré 1 : Rapprochement Manuel (Gauche) */}
                 <div className="bg-gradient-to-br from-blue-600 to-pink-500 p-8 rounded-[2.5rem] shadow-2xl grid grid-cols-2 gap-6 relative overflow-hidden border border-white/10">
                   <StatItem label="Solde Compte bancaire" value={selectedAccount?.bankBalanceManual || 0} isManual onManualChange={(val) => updateAccount({...selectedAccount!, bankBalanceManual: val})} isInGradient />
                   <StatItem label="Encourt carte" value={selectedAccount?.cardOutstandingManual || 0} isManual onManualChange={(val) => updateAccount({...selectedAccount!, cardOutstandingManual: val})} isInGradient />
@@ -347,7 +343,6 @@ const Accounts: React.FC = () => {
                   <StatItem label="Solde Compte (Pointé C)" value={stats?.soldeC || 0} highlight="blue" isInGradient />
                 </div>
 
-                {/* Encadré 2 : Calculs Application (Droite) */}
                 <div className="bg-gradient-to-br from-blue-600 to-pink-500 p-8 rounded-[2.5rem] shadow-2xl grid grid-cols-3 gap-6 relative overflow-hidden border border-white/10">
                   <StatItem label="Solde Réel" value={stats?.soldeReel || 0} isInGradient />
                   <StatItem label="Récurrent" value={stats?.recurringRemaining || 0} highlight="amber" isInGradient />
@@ -362,7 +357,6 @@ const Accounts: React.FC = () => {
              </div>
            )}
 
-           {/* TABLEAU DES TRANSACTIONS */}
            <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-[11px]">
@@ -437,7 +431,6 @@ const Accounts: React.FC = () => {
         </div>
       )}
 
-      {/* FORMULAIRE COMPTE */}
       {showForm && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="bg-white rounded-[2.5rem] w-full max-w-md p-10 shadow-2xl animate-in zoom-in duration-200 flex flex-col relative overflow-visible border border-slate-100">
@@ -479,7 +472,6 @@ const Accounts: React.FC = () => {
         </div>
       )}
 
-      {/* FORMULAIRE TRANSACTION RAPIDE */}
       {showTransactionForm && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 backdrop-blur-md p-4 overflow-y-auto">
           <div className="bg-white rounded-[2.5rem] w-full max-w-2xl p-10 shadow-2xl animate-in zoom-in duration-200 border border-slate-100">

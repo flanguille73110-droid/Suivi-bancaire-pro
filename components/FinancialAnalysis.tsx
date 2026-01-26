@@ -25,13 +25,11 @@ const FinancialAnalysis: React.FC = () => {
     "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
   ];
 
-  // Trouver le compte principal
   const principalAccount = accounts.find((a: BankAccount) => a.isPrincipal);
 
-  // Extraire les années uniques présentes dans les transactions pour le filtre
-  const availableYears = useMemo(() => {
+  const availableYears = useMemo<string[]>(() => {
     const years = transactions.map((t: Transaction) => new Date(t.date).getFullYear().toString());
-    return Array.from(new Set(years)).sort((a: string, b: string) => b.localeCompare(a));
+    return Array.from(new Set<string>(years)).sort((a: string, b: string) => b.localeCompare(a));
   }, [transactions]);
 
   const formatDateDisplay = (dateStr: string) => {
@@ -49,44 +47,27 @@ const FinancialAnalysis: React.FC = () => {
     return new Date(dateStr).getFullYear();
   };
 
-  // LOGIQUE DE FILTRAGE MULTI-CRITÈRES
   const filteredData = useMemo(() => {
     if (!principalAccount) return [];
 
     return transactions.filter((t: Transaction) => {
-      // 1. Filtrer par compte principal obligatoirement
       const isFromPrincipal = String(t.sourceAccountId) === String(principalAccount.id) || 
                               String(t.destinationAccountId) === String(principalAccount.id);
       if (!isFromPrincipal) return false;
 
       const tDate = new Date(t.date);
-      const tDateStr = t.date; // YYYY-MM-DD
+      const tDateStr = t.date;
 
-      // 2. Filtre par Catégorie
       if (filters.categoryId && String(t.categoryId) !== String(filters.categoryId)) return false;
-
-      // 3. Filtre par Sous-catégorie
       if (filters.subCategory && t.subCategory !== filters.subCategory) return false;
-
-      // 4. Filtre par Mois
       if (filters.month !== '' && tDate.getMonth().toString() !== filters.month) return false;
-
-      // 5. Filtre par Année
       if (filters.year && tDate.getFullYear().toString() !== filters.year) return false;
-
-      // 6. Filtre par Date de début
       if (filters.startDate && tDateStr < filters.startDate) return false;
-
-      // 7. Filtre par Date de fin
       if (filters.endDate && tDateStr > filters.endDate) return false;
-
-      // 8. Filtre par Montant (Revenu ou Dépense)
       if (filters.amount !== '') {
         const amt = parseFloat(filters.amount);
         if (Math.abs(t.revenue - amt) > 0.001 && Math.abs(t.expense - amt) > 0.001) return false;
       }
-
-      // 9. Filtre par Type (Revenu ou Dépense)
       if (filters.type === 'REVENUE' && t.revenue <= 0) return false;
       if (filters.type === 'EXPENSE' && t.expense <= 0) return false;
 
@@ -94,7 +75,6 @@ const FinancialAnalysis: React.FC = () => {
     }).sort((a: Transaction, b: Transaction) => b.date.localeCompare(a.date));
   }, [transactions, principalAccount, filters]);
 
-  // CALCUL DES STATS SUR LES DONNÉES FILTRÉES
   const stats = useMemo(() => {
     const totalRevenue = filteredData.reduce((sum: number, t: Transaction) => sum + (t.revenue || 0), 0);
     const totalExpense = filteredData.reduce((sum: number, t: Transaction) => sum + (t.expense || 0), 0);
@@ -122,7 +102,6 @@ const FinancialAnalysis: React.FC = () => {
       <div className="flex flex-col items-center justify-center py-20 text-slate-400">
         <BarChart3 size={64} strokeWidth={1} className="mb-4" />
         <p className="font-bold">Aucun compte principal défini.</p>
-        <p className="text-xs uppercase tracking-widest mt-2">Veuillez configurer un compte principal dans l'onglet Comptes.</p>
       </div>
     );
   }
@@ -131,8 +110,6 @@ const FinancialAnalysis: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      
-      {/* Barre d'outils et Bouton Filtre */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
           <h2 className="text-2xl font-black text-slate-800 tracking-tight uppercase flex items-center">
@@ -163,10 +140,8 @@ const FinancialAnalysis: React.FC = () => {
         </div>
       </div>
 
-      {/* Formulaire de filtres dynamique avec layout réorganisé */}
       {showFilters && (
         <div className="bg-white p-8 rounded-[2.5rem] border-2 border-blue-50 shadow-2xl animate-in slide-in-from-top duration-300 space-y-6">
-          {/* 1ère ligne : Date de début, Catégorie, Mois, Montant */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Date début</label>
@@ -177,7 +152,6 @@ const FinancialAnalysis: React.FC = () => {
                 onChange={(e) => setFilters({...filters, startDate: e.target.value})}
               />
             </div>
-
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Catégorie</label>
               <select 
@@ -189,7 +163,6 @@ const FinancialAnalysis: React.FC = () => {
                 {categories.map((c: Category) => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
               </select>
             </div>
-
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mois</label>
               <select 
@@ -201,7 +174,6 @@ const FinancialAnalysis: React.FC = () => {
                 {months.map((m, idx) => <option key={m} value={idx.toString()}>{m}</option>)}
               </select>
             </div>
-
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Montant (€)</label>
               <input 
@@ -214,8 +186,6 @@ const FinancialAnalysis: React.FC = () => {
               />
             </div>
           </div>
-
-          {/* 2eme ligne : Date de fin , Sous catégories, Année, Critère revenu ou dépense */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Date fin</label>
@@ -226,7 +196,6 @@ const FinancialAnalysis: React.FC = () => {
                 onChange={(e) => setFilters({...filters, endDate: e.target.value})}
               />
             </div>
-
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sous-catégorie</label>
               <select 
@@ -239,7 +208,6 @@ const FinancialAnalysis: React.FC = () => {
                 {selectedCategory?.subCategories.map((s: string) => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
-
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Année</label>
               <select 
@@ -248,14 +216,13 @@ const FinancialAnalysis: React.FC = () => {
                 onChange={(e) => setFilters({...filters, year: e.target.value})}
               >
                 <option value="">Toutes</option>
-                {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+                {availableYears.map((y: string) => <option key={y} value={y}>{y}</option>)}
               </select>
             </div>
-
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Type d'opération</label>
               <select 
-                className={`w-full px-4 py-3 border-2 border-transparent rounded-xl outline-none font-bold transition-all ${filters.type === 'REVENUE' ? 'bg-emerald-50 text-emerald-700 focus:border-emerald-500' : filters.type === 'EXPENSE' ? 'bg-rose-50 text-rose-700 focus:border-rose-500' : 'bg-slate-50 focus:border-blue-500'}`}
+                className="w-full px-4 py-3 border-2 border-transparent rounded-xl outline-none font-bold"
                 value={filters.type}
                 onChange={(e) => setFilters({...filters, type: e.target.value})}
               >
@@ -268,7 +235,6 @@ const FinancialAnalysis: React.FC = () => {
         </div>
       )}
 
-      {/* Header Statistique - RECALCULÉ DYNAMIQUEMENT */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center justify-between">
           <div>
@@ -299,7 +265,6 @@ const FinancialAnalysis: React.FC = () => {
         </div>
       </div>
 
-      {/* Tableau d'analyse - FILTRÉ */}
       <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-[11px]">
@@ -359,7 +324,7 @@ const FinancialAnalysis: React.FC = () => {
               }) : (
                 <tr>
                   <td colSpan={7} className="px-6 py-20 text-center text-slate-300 font-bold italic">
-                    Aucune transaction ne correspond à vos critères de recherche.
+                    Aucune transaction ne correspond à vos critères.
                   </td>
                 </tr>
               )}
