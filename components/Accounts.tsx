@@ -2,12 +2,12 @@
 import React, { useContext, useState, useMemo } from 'react';
 import { AppContext } from '../App';
 import { BankAccount, Transaction, ReconciliationMarker, TransactionType, Frequency, AppContextType } from '../types';
-import { Plus, Trash2, Edit2, X, Info, ArrowRight, ArrowUpDown, Target, Repeat, Wallet, CreditCard, Check } from 'lucide-react';
+import { Plus, Trash2, Edit2, X, Info, ArrowRight, ArrowUpDown, Target, Repeat, Wallet, CreditCard, Check, Clock } from 'lucide-react';
 import IconPicker from './IconPicker';
 
 const Accounts: React.FC = () => {
   const context = useContext(AppContext) as AppContextType;
-  const { accounts, transactions, recurring, categories, goals, addAccount, confirmDelete, updateAccount, updateTransaction, addTransaction } = context;
+  const { accounts, transactions, recurring, categories, goals, addAccount, confirmDelete, updateAccount, updateTransaction, addTransaction, updateGoal } = context;
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState<'add' | 'edit' | null>(null);
   const [editingAccount, setEditingAccount] = useState<BankAccount | null>(null);
@@ -58,6 +58,27 @@ const Accounts: React.FC = () => {
     }, acc.initialBalance);
   };
 
+  // Calcul du reste à passer pour un compte spécifique
+  const calculateRemainingRecurring = (accId: string) => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    return recurring
+      .filter(rec => !rec.isPaused && String(rec.sourceAccountId) === String(accId))
+      .reduce((sum, rec) => {
+        const hasPassed = transactions.some(t => {
+          const tDate = new Date(t.date);
+          return tDate.getMonth() === currentMonth && 
+                 tDate.getFullYear() === currentYear &&
+                 String(t.sourceAccountId) === String(rec.sourceAccountId) &&
+                 (t.expense === rec.amount || t.revenue === rec.amount) &&
+                 t.description.toLowerCase().includes(rec.description.toLowerCase());
+        });
+        return hasPassed ? sum : sum + rec.amount;
+      }, 0);
+  };
+
   const selectedAccount = useMemo(() => 
     accounts.find((a: BankAccount) => String(a.id) === String(selectedAccountId)),
     [accounts, selectedAccountId]
@@ -80,10 +101,11 @@ const Accounts: React.FC = () => {
   };
 
   const handleOpenTransactionForm = () => {
+    const sourceId = selectedAccountId || (accounts.find(a => a.isPrincipal)?.id || '');
     setTFormData({
       date: new Date().toISOString().split('T')[0],
       type: TransactionType.EXPENSE,
-      sourceAccountId: selectedAccountId || '',
+      sourceAccountId: sourceId,
       destinationAccountId: '',
       targetGoalId: '',
       categoryId: '',
@@ -99,29 +121,38 @@ const Accounts: React.FC = () => {
 
   const handleSaveTransaction = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!tFormData.sourceAccountId || (!tFormData.categoryId && tFormData.type !== TransactionType.TRANSFER && tFormData.type !== TransactionType.GOAL_DEPOSIT) || !tFormData.amount) return;
+    if (!tFormData.sourceAccountId || !tFormData.amount) return;
 
     let finalPaymentMethod = tFormData.paymentMethod;
     if (tFormData.paymentMethod === 'Chèque' && tFormData.chequeNumber) {
       finalPaymentMethod = `Chèque n°${tFormData.chequeNumber}`;
     }
 
+    const isTransfer = tFormData.type === TransactionType.TRANSFER;
+    const isGoalDeposit = tFormData.type === TransactionType.GOAL_DEPOSIT;
+    const targetGoal = goals.find(g => String(g.id) === String(tFormData.targetGoalId));
+
     const tData: Transaction = {
       id: Date.now().toString(),
       date: tFormData.date,
       type: tFormData.type,
       sourceAccountId: tFormData.sourceAccountId,
-      destinationAccountId: tFormData.destinationAccountId || undefined,
+      destinationAccountId: (isTransfer || isGoalDeposit) ? tFormData.destinationAccountId : undefined,
       categoryId: tFormData.categoryId,
       subCategory: tFormData.subCategory,
-      description: tFormData.type === TransactionType.GOAL_DEPOSIT ? `Épargne Objectif` : tFormData.description,
+      description: isGoalDeposit ? `Épargne Objectif : ${targetGoal?.name || ''}` : tFormData.description,
       revenue: tFormData.type === TransactionType.REVENUE ? tFormData.amount : 0,
-      expense: (tFormData.type === TransactionType.EXPENSE || tFormData.type === TransactionType.TRANSFER || tFormData.type === TransactionType.GOAL_DEPOSIT) ? tFormData.amount : 0,
+      expense: (tFormData.type === TransactionType.EXPENSE || isTransfer || isGoalDeposit) ? tFormData.amount : 0,
       paymentMethod: finalPaymentMethod,
       reconciliation: tFormData.reconciliation
     };
 
     addTransaction(tData);
+
+    if (isGoalDeposit && tFormData.targetGoalId) {
+      if (targetGoal) updateGoal({ ...targetGoal, currentAmount: targetGoal.currentAmount + tFormData.amount });
+    }
+
     setShowTransactionForm(false);
   };
 
@@ -243,12 +274,12 @@ const Accounts: React.FC = () => {
            </div>
 
            {selectedAccount?.isPrincipal && (
-             <div className="flex justify-end">
+             <div className="flex justify-end animate-in zoom-in duration-300">
                <button 
                 onClick={handleOpenTransactionForm}
-                className="px-8 py-4 bg-gradient-to-r from-blue-500 to-pink-500 text-white rounded-2xl shadow-xl font-black uppercase text-xs tracking-widest hover:scale-[1.02] active:scale-95 transition-all flex items-center"
+                className="px-10 py-5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-[2rem] shadow-2xl font-black uppercase text-xs tracking-[0.2em] hover:scale-105 active:scale-95 transition-all flex items-center border border-white/20"
                >
-                 <Plus size={18} className="mr-2" /> Saisir une Transaction
+                 <Plus size={20} className="mr-3" /> Saisir une Opération Rapide
                </button>
              </div>
            )}
@@ -264,7 +295,8 @@ const Accounts: React.FC = () => {
 
                 <div className="bg-gradient-to-br from-blue-600 to-pink-500 p-8 rounded-[2.5rem] shadow-2xl grid grid-cols-3 gap-6 relative overflow-hidden border border-white/10">
                   <StatItem label="Solde Réel" value={calculateRealBalance(selectedAccount!)} isInGradient />
-                  <StatItem label="Budget restant" value={calculateRealBalance(selectedAccount!)} highlight="emerald" isInGradient />
+                  <StatItem label="Reste à passer (Rec)" value={calculateRemainingRecurring(selectedAccount!.id)} highlight="rose" isInGradient />
+                  <StatItem label="Budget restant" value={calculateRealBalance(selectedAccount!) - calculateRemainingRecurring(selectedAccount!.id)} highlight="emerald" isInGradient />
                 </div>
              </div>
            ) : (
@@ -275,7 +307,7 @@ const Accounts: React.FC = () => {
              </div>
            )}
 
-           <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl overflow-hidden">
+           <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl overflow-hidden mt-6">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-[11px]">
                   <thead className="bg-slate-50 text-slate-500 uppercase font-black tracking-widest">
@@ -315,29 +347,19 @@ const Accounts: React.FC = () => {
                             {(t as any).runningBalance.toFixed(2)}€
                           </td>
                           <td className="px-6 py-4 text-center">
-                            {selectedAccount?.isPrincipal ? (
-                              <select 
+                            <select 
                                 className={`text-[10px] font-black border-2 border-slate-400 rounded-xl px-3 py-1 bg-white outline-none cursor-pointer focus:ring-0 text-slate-900 transition-all`}
                                 value={t.reconciliation}
                                 onChange={(e) => handleUpdateReconciliation(t, e.target.value as ReconciliationMarker)}
                               >
                                 <option value={ReconciliationMarker.NONE} className="text-slate-900 font-black">-</option>
-                                <option value={ReconciliationMarker.GREEN_CHECK} className="text-emerald-600 font-black">✅ Coche Verte</option>
+                                <option value={ReconciliationMarker.GREEN_CHECK} className="text-emerald-600 font-black">✅ Check</option>
                                 <option value={ReconciliationMarker.G} className="text-slate-900 font-black">G</option>
                                 <option value={ReconciliationMarker.G2} className="text-slate-900 font-black">G2</option>
                                 <option value={ReconciliationMarker.D} className="text-slate-900 font-black">D</option>
                                 <option value={ReconciliationMarker.D2} className="text-slate-900 font-black">D2</option>
                                 <option value={ReconciliationMarker.C} className="text-slate-900 font-black">C</option>
-                              </select>
-                            ) : (
-                              <button 
-                                onClick={() => handleUpdateReconciliation(t, t.reconciliation === ReconciliationMarker.GREEN_CHECK ? ReconciliationMarker.NONE : ReconciliationMarker.GREEN_CHECK)}
-                                className={`w-8 h-8 rounded-xl border-[3px] flex items-center justify-center transition-all ${t.reconciliation === ReconciliationMarker.GREEN_CHECK ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-100' : 'border-slate-800 text-transparent hover:border-emerald-500'}`}
-                                title="Cocher cette transaction"
-                              >
-                                <Check size={14} strokeWidth={4} />
-                              </button>
-                            )}
+                            </select>
                           </td>
                         </tr>
                       );
@@ -346,6 +368,134 @@ const Accounts: React.FC = () => {
                 </table>
               </div>
            </div>
+        </div>
+      )}
+
+      {showTransactionForm && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-2xl p-10 shadow-2xl animate-in zoom-in duration-200 border border-slate-100 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-8">
+              <h3 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Saisie Rapide : {selectedAccount?.name}</h3>
+              <button onClick={() => setShowTransactionForm(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={24}/></button>
+            </div>
+            
+            <form onSubmit={handleSaveTransaction} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</label>
+                <input type="date" required className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl outline-none font-bold" value={tFormData.date} onChange={e => setTFormData({...tFormData, date: e.target.value})} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Type</label>
+                <select className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl outline-none font-bold" value={tFormData.type} onChange={e => setTFormData({...tFormData, type: e.target.value as TransactionType, categoryId: '', subCategory: ''})}>
+                  <option value={TransactionType.EXPENSE}>Dépense</option>
+                  <option value={TransactionType.REVENUE}>Revenu</option>
+                  <option value={TransactionType.TRANSFER}>Transfert</option>
+                  <option value={TransactionType.GOAL_DEPOSIT}>Vers objectif 🎯</option>
+                </select>
+              </div>
+
+              {tFormData.type === TransactionType.GOAL_DEPOSIT && (
+                <div className="md:col-span-2 space-y-1 animate-in slide-in-from-top duration-200">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Objectif cible 🎯</label>
+                  <select required className="w-full px-5 py-4 bg-blue-50 border-2 border-blue-100 rounded-2xl outline-none font-black uppercase" value={tFormData.targetGoalId} onChange={e => setTFormData({...tFormData, targetGoalId: e.target.value})}>
+                    <option value="">Sélectionner l'objectif...</option>
+                    {goals.map(g => <option key={g.id} value={g.id}>{g.icon} {g.name}</option>)}
+                  </select>
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Compte Source</label>
+                <input type="text" disabled className="w-full px-5 py-4 bg-slate-100 border-2 border-transparent rounded-2xl font-bold uppercase" value={selectedAccount?.name || accounts.find(a => a.id === tFormData.sourceAccountId)?.name || ''} />
+              </div>
+
+              {(tFormData.type === TransactionType.TRANSFER || tFormData.type === TransactionType.GOAL_DEPOSIT) ? (
+                <div className="space-y-1 animate-in slide-in-from-top duration-200">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Compte Destinataire</label>
+                  <select required className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl outline-none font-bold uppercase" value={tFormData.destinationAccountId} onChange={e => setTFormData({...tFormData, destinationAccountId: e.target.value})}>
+                    <option value="">Sélectionner...</option>
+                    {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  </select>
+                </div>
+              ) : (
+                <div className="hidden md:block" />
+              )}
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mode de paiement</label>
+                <select className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl outline-none font-bold uppercase" value={tFormData.paymentMethod} onChange={e => setTFormData({...tFormData, paymentMethod: e.target.value})}>
+                  <option value="Virement">Virement</option>
+                  <option value="Prélèvement">Prélèvement</option>
+                  <option value="Espèces">Espèces</option>
+                  <option value="Chèque">Chèque</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Montant (€)</label>
+                <input type="number" step="0.01" required className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl font-black outline-none" value={tFormData.amount} onChange={e => setTFormData({...tFormData, amount: Number(e.target.value)})} />
+              </div>
+
+              {tFormData.paymentMethod === 'Chèque' && (
+                <div className="md:col-span-2 space-y-1 animate-in slide-in-from-top duration-200">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Numéro du chèque</label>
+                  <input 
+                    type="text" 
+                    placeholder="N° du chèque"
+                    className="w-full px-5 py-4 bg-blue-50 border-2 border-blue-100 rounded-2xl outline-none font-black placeholder:text-slate-300"
+                    value={tFormData.chequeNumber}
+                    onChange={e => setTFormData({...tFormData, chequeNumber: e.target.value})}
+                  />
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Catégorie</label>
+                <select 
+                  className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl outline-none font-bold uppercase" 
+                  value={tFormData.categoryId} 
+                  onChange={e => setTFormData({...tFormData, categoryId: e.target.value, subCategory: ''})}
+                >
+                  <option value="">Sélectionner...</option>
+                  {categories.filter(c => c.type === (tFormData.type === TransactionType.REVENUE ? 'REVENUE' : 'EXPENSE')).map(c => (
+                    <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sous-catégorie</label>
+                <select 
+                  className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl outline-none font-bold uppercase disabled:opacity-50" 
+                  value={tFormData.subCategory} 
+                  onChange={e => setTFormData({...tFormData, subCategory: e.target.value})}
+                  disabled={!selectedTCategory}
+                >
+                  <option value="">Aucune</option>
+                  {selectedTCategory?.subCategories.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+
+              <div className="md:col-span-2 space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Libellé / Mémo (Description)</label>
+                <textarea className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl h-20 focus:border-blue-500 outline-none font-bold" value={tFormData.description} onChange={e => setTFormData({...tFormData, description: e.target.value})} placeholder="ex: Courses hebdomadaires" />
+              </div>
+
+              <div className="md:col-span-2 space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Rapprochement</label>
+                <div className="grid grid-cols-4 sm:grid-cols-7 gap-1">
+                  {Object.values(ReconciliationMarker).map((m) => (
+                    <button key={m} type="button" onClick={() => setTFormData({...tFormData, reconciliation: m})} className={`py-2 rounded-xl border-2 text-[10px] font-black transition-all ${tFormData.reconciliation === m ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white border-slate-100 text-slate-400'}`}>
+                      {m === ReconciliationMarker.GREEN_CHECK ? 'Check' : m === ReconciliationMarker.NONE ? '-' : m}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="md:col-span-2 flex space-x-4 pt-6">
+                <button type="button" onClick={() => setShowTransactionForm(false)} className="flex-1 py-4 font-black text-slate-400 uppercase text-[10px] tracking-widest border border-slate-100 rounded-2xl">Annuler</button>
+                <button type="submit" className="flex-1 py-4 font-bold bg-slate-900 text-white rounded-2xl shadow-xl uppercase text-[10px] tracking-widest">Enregistrer</button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

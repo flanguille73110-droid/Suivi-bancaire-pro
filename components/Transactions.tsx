@@ -2,7 +2,7 @@
 import React, { useContext, useState } from 'react';
 import { AppContext } from '../App';
 import { Transaction, TransactionType, ReconciliationMarker, AppContextType } from '../types';
-import { Plus, Trash2, Edit2, X, ArrowRight, Target } from 'lucide-react';
+import { Plus, Trash2, Edit2, X, ArrowRight, Target, Check } from 'lucide-react';
 
 const Transactions: React.FC = () => {
   const context = useContext(AppContext) as AppContextType;
@@ -93,7 +93,7 @@ const Transactions: React.FC = () => {
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.sourceAccountId || (!formData.categoryId && formData.type !== TransactionType.TRANSFER && formData.type !== TransactionType.GOAL_DEPOSIT) || !formData.amount) return;
+    if (!formData.sourceAccountId || !formData.amount) return;
 
     let finalPaymentMethod = formData.paymentMethod;
     if (formData.paymentMethod === 'Chèque' && formData.chequeNumber) {
@@ -110,7 +110,7 @@ const Transactions: React.FC = () => {
       destinationAccountId: (isTransfer || isGoalDeposit) ? formData.destinationAccountId : undefined,
       categoryId: formData.categoryId,
       subCategory: formData.subCategory,
-      description: isGoalDeposit ? `Épargne Objectif : ${goals.find((g:any) => String(g.id) === String(formData.targetGoalId))?.name}` : formData.description,
+      description: isGoalDeposit ? `Épargne Objectif : ${goals.find(g => String(g.id) === String(formData.targetGoalId))?.name || ''}` : formData.description,
       revenue: formData.type === TransactionType.REVENUE ? formData.amount : 0,
       expense: (formData.type === TransactionType.EXPENSE || isTransfer || isGoalDeposit) ? formData.amount : 0,
       paymentMethod: finalPaymentMethod,
@@ -120,7 +120,7 @@ const Transactions: React.FC = () => {
     if (showForm === 'add') {
       addTransaction({ ...tData as Transaction, id: Date.now().toString() });
       if (isGoalDeposit && formData.targetGoalId) {
-        const goal = goals.find((g: any) => String(g.id) === String(formData.targetGoalId));
+        const goal = goals.find(g => String(g.id) === String(formData.targetGoalId));
         if (goal) updateGoal({ ...goal, currentAmount: goal.currentAmount + formData.amount });
       }
     } else if (showForm === 'edit' && editingTransaction) {
@@ -131,8 +131,10 @@ const Transactions: React.FC = () => {
 
   const paymentMethods = [
     'Virement', 'Prélèvement', 'Chèque', 'Espèces',
-    ...cards.map((c: any) => `Carte: ${c.name}`)
+    ...cards.map(c => `Carte: ${c.name}`)
   ];
+
+  const selectedCategory = categories.find(c => String(c.id) === String(formData.categoryId));
 
   return (
     <div className="space-y-6">
@@ -156,7 +158,6 @@ const Transactions: React.FC = () => {
                 <th className="px-6 py-5 border-b">Sous-catégories</th>
                 <th className="px-6 py-5 border-b">Libellé / Description</th>
                 <th className="px-6 py-5 border-b">Compte Source</th>
-                <th className="px-6 py-5 border-b">Moyen de paiement</th>
                 <th className="px-6 py-5 border-b">Destination</th>
                 <th className="px-6 py-4 border-b text-right">Dépense</th>
                 <th className="px-6 py-4 border-b text-right">Revenu</th>
@@ -165,9 +166,9 @@ const Transactions: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-slate-50">
               {sortedTransactions.map(t => {
-                const sourceAcc = accounts.find((a: any) => String(a.id) === String(t.sourceAccountId));
-                const destAcc = t.destinationAccountId ? accounts.find((a: any) => String(a.id) === String(t.destinationAccountId)) : null;
-                const cat = categories.find((c: any) => String(c.id) === String(t.categoryId));
+                const sourceAcc = accounts.find(a => String(a.id) === String(t.sourceAccountId));
+                const destAcc = t.destinationAccountId ? accounts.find(a => String(a.id) === String(t.destinationAccountId)) : null;
+                const cat = categories.find(c => String(c.id) === String(t.categoryId));
                 return (
                   <tr key={t.id} className="hover:bg-slate-50 transition-all group">
                     <td className="px-6 py-4 text-slate-400 font-bold">{formatDateDisplay(t.date)}</td>
@@ -184,7 +185,6 @@ const Transactions: React.FC = () => {
                         {sourceAcc?.name}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-[10px] text-slate-400 font-black uppercase">{t.paymentMethod}</td>
                     <td className="px-6 py-4">
                       {destAcc ? (
                         <div className="flex items-center text-blue-500 font-black text-[9px] uppercase">
@@ -220,10 +220,11 @@ const Transactions: React.FC = () => {
               <button onClick={() => setShowForm(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={24}/></button>
             </div>
             
-            <form onSubmit={onSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <form onSubmit={onSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+              {/* RANGÉE 1: DATE & TYPE */}
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</label>
-                <input type="date" required className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:border-blue-500 focus:bg-white outline-none font-bold" value={formData.date} onChange={e => setFormData({ ...formData, date: e.target.value })} />
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Date d'opération</label>
+                <input type="date" required className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:border-blue-500 outline-none font-bold" value={formData.date} onChange={e => setFormData({ ...formData, date: e.target.value })} />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Type d'opération</label>
@@ -235,57 +236,123 @@ const Transactions: React.FC = () => {
                 </select>
               </div>
 
+              {/* RANGÉE 2: OBJECTIF CIBLE (Conditionnelle) */}
+              {formData.type === TransactionType.GOAL_DEPOSIT && (
+                <div className="md:col-span-2 space-y-1 animate-in slide-in-from-top duration-200">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Objectif Cible 🎯</label>
+                  <select required className="w-full px-6 py-4 bg-slate-100 border-2 border-blue-200 rounded-2xl focus:border-blue-500 outline-none font-black uppercase" value={formData.targetGoalId} onChange={e => setFormData({ ...formData, targetGoalId: e.target.value })}>
+                    <option value="">Sélectionner l'objectif...</option>
+                    {goals.map(g => <option key={g.id} value={g.id}>{g.icon} {g.name}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {/* RANGÉE 3: COMPTE SOURCE & DESTINATION */}
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Compte Source</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Compte Source (Débit)</label>
                 <select required className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:border-blue-500 outline-none font-bold uppercase" value={formData.sourceAccountId} onChange={e => setFormData({ ...formData, sourceAccountId: e.target.value })}>
-                  {accounts.map((a: any) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
               </div>
 
+              {(formData.type === TransactionType.TRANSFER || formData.type === TransactionType.GOAL_DEPOSIT) ? (
+                <div className="space-y-1 animate-in slide-in-from-top duration-200">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Compte Destinataire (Crédit)</label>
+                  <select required className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:border-blue-500 outline-none font-bold uppercase" value={formData.destinationAccountId} onChange={e => setFormData({ ...formData, destinationAccountId: e.target.value })}>
+                    <option value="">Sélectionner le compte...</option>
+                    {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  </select>
+                </div>
+              ) : (
+                <div className="hidden md:block" />
+              )}
+
+              {/* RANGÉE 4: MODE DE PAIEMENT & MONTANT */}
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mode de paiement</label>
                 <select className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:border-blue-500 outline-none font-bold uppercase" value={formData.paymentMethod} onChange={e => setFormData({ ...formData, paymentMethod: e.target.value })}>
                   {paymentMethods.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
-
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Montant (€)</label>
                 <input type="number" step="0.01" required className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl text-2xl font-black focus:border-blue-500 outline-none" value={formData.amount} onChange={e => setFormData({ ...formData, amount: Number(e.target.value) })} />
               </div>
 
+              {/* RANGÉE 5: NUMÉRO DE CHÈQUE (Conditionnelle) */}
+              {formData.paymentMethod === 'Chèque' && (
+                <div className="md:col-span-2 space-y-1 animate-in slide-in-from-top duration-200">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Numéro du chèque</label>
+                  <input 
+                    type="text" 
+                    placeholder="Entrez le numéro du chèque"
+                    className="w-full px-6 py-4 bg-blue-50 border-2 border-blue-100 rounded-2xl outline-none font-black placeholder:text-slate-300"
+                    value={formData.chequeNumber}
+                    onChange={e => setFormData({ ...formData, chequeNumber: e.target.value })}
+                  />
+                </div>
+              )}
+
+              {/* RANGÉE 6: CATÉGORIE & SOUS-CATÉGORIE */}
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Catégorie</label>
-                <select required className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:border-blue-500 outline-none font-bold uppercase" value={formData.categoryId} onChange={e => setFormData({ ...formData, categoryId: e.target.value, subCategory: '' })}>
+                <select 
+                  required={formData.type !== TransactionType.TRANSFER && formData.type !== TransactionType.GOAL_DEPOSIT}
+                  className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:border-blue-500 outline-none font-bold uppercase" 
+                  value={formData.categoryId} 
+                  onChange={e => setFormData({ ...formData, categoryId: e.target.value, subCategory: '' })}
+                >
                   <option value="">Sélectionner...</option>
-                  {categories.filter((c:any) => c.type === (formData.type === TransactionType.REVENUE ? 'REVENUE' : 'EXPENSE') || formData.type === TransactionType.TRANSFER).map((c: any) => (
+                  {categories.filter(c => c.type === (formData.type === TransactionType.REVENUE ? 'REVENUE' : 'EXPENSE')).map(c => (
                     <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
                   ))}
+                  {(formData.type === TransactionType.TRANSFER || formData.type === TransactionType.GOAL_DEPOSIT) && (
+                    <option value="transfer">Transfert Interne</option>
+                  )}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sous-catégorie</label>
+                <select 
+                  className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:border-blue-500 outline-none font-bold uppercase disabled:opacity-50" 
+                  value={formData.subCategory} 
+                  onChange={e => setFormData({ ...formData, subCategory: e.target.value })}
+                  disabled={!selectedCategory || selectedCategory.subCategories.length === 0}
+                >
+                  <option value="">Aucune</option>
+                  {selectedCategory?.subCategories.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
 
+              {/* RANGÉE 7: DESCRIPTION */}
               <div className="md:col-span-2 space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Libellé / Mémo</label>
-                <textarea className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl h-24 focus:border-blue-500 outline-none font-bold" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} placeholder="ex: Courses" />
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Libellé / Mémo (Description)</label>
+                <textarea className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl h-20 focus:border-blue-500 outline-none font-bold" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} placeholder="ex: Courses hebdomadaires" />
               </div>
 
-              <div className="md:col-span-2 flex space-x-4 pt-4">
+              {/* RANGÉE 8: RAPPROCHEMENT */}
+              <div className="md:col-span-2 space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Rapprochement Bancaire (Marqueur)</label>
+                <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
+                  {Object.values(ReconciliationMarker).map((marker) => (
+                    <button
+                      key={marker}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, reconciliation: marker })}
+                      className={`py-3 rounded-xl border-2 font-black text-[10px] transition-all flex flex-col items-center justify-center space-y-1 ${formData.reconciliation === marker ? 'bg-slate-900 border-slate-900 text-white' : 'bg-slate-50 border-transparent text-slate-400 hover:border-slate-200'}`}
+                    >
+                      {marker === ReconciliationMarker.GREEN_CHECK ? <Check size={14} className="text-emerald-500" /> : <span className="text-sm">{marker === ReconciliationMarker.NONE ? '-' : marker}</span>}
+                      <span className="scale-75 uppercase tracking-widest">{marker === ReconciliationMarker.NONE ? 'Aucun' : marker === ReconciliationMarker.GREEN_CHECK ? 'Check' : marker}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="md:col-span-2 flex space-x-4 pt-6 border-t border-slate-100">
                 <button type="button" onClick={() => setShowForm(null)} className="flex-1 py-4 font-black text-slate-400 uppercase text-[10px] tracking-widest border border-slate-100 rounded-2xl hover:bg-slate-50 transition-all">Annuler</button>
                 <button type="submit" className="flex-1 py-4 font-bold bg-slate-900 text-white rounded-2xl shadow-xl uppercase text-[10px] tracking-widest active:scale-95 transition-transform">Enregistrer</button>
               </div>
             </form>
-
-            {showForm === 'edit' && editingTransaction && (
-              <div className="mt-8 pt-8 border-t border-slate-100">
-                <button 
-                  type="button" 
-                  onClick={() => { confirmDelete(editingTransaction, 'transaction'); setShowForm(null); }}
-                  className="w-full py-4 bg-rose-50 text-rose-500 hover:bg-rose-100 font-black rounded-2xl uppercase text-[10px] tracking-widest border border-rose-100 flex items-center justify-center transition-all active:scale-95 shadow-sm"
-                >
-                  <Trash2 size={16} className="mr-2" /> Supprimer définitivement
-                </button>
-              </div>
-            )}
           </div>
         </div>
       )}
