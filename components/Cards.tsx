@@ -87,7 +87,7 @@ const Cards: React.FC = () => {
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Compte de rattachement</label>
-                  <select className="w-full px-5 h-14 bg-slate-50 border-2 border-transparent rounded-2xl outline-none font-bold focus:border-blue-500 transition-all uppercase" value={formData.accountId} onChange={e => setFormData({...formData, accountId: e.target.value})}>
+                  <select className="w-full px-5 h-14 bg-slate-50 border-2 border-transparent rounded-2xl outline-none font-bold focus:border-blue-500 transition-all uppercase appearance-none" value={formData.accountId} onChange={e => setFormData({...formData, accountId: e.target.value})}>
                     <option value="">Sélectionner un compte...</option>
                     {accounts.map((a:any) => <option key={a.id} value={a.id}>{a.name}</option>)}
                   </select>
