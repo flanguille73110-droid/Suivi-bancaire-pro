@@ -33,7 +33,6 @@ const Recurring: React.FC = () => {
     const totalAmount = active.reduce((sum, r) => sum + r.amount, 0);
     
     // Calcul du "Reste à passer"
-    // On considère qu'une récurrente est passée si une transaction du mois en cours correspond
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
@@ -120,14 +119,13 @@ const Recurring: React.FC = () => {
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-black text-slate-800 tracking-tight uppercase">Échéancier Récurrent</h2>
         <button 
-          onClick={() => { setFormData({ ...formData, startDate: new Date().toISOString().split('T')[0], amount: 0, endDate: '', targetGoalId: '', destinationAccountId: '' }); setShowForm('add'); }}
+          onClick={() => { setFormData({ ...formData, startDate: new Date().toISOString().split('T')[0], amount: 0, endDate: '', targetGoalId: '', destinationAccountId: '', categoryId: '', subCategory: '' }); setShowForm('add'); }}
           className="px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all flex items-center border border-white/10"
         >
           <Plus size={18} className="mr-2" /> Créer une Occurrence
         </button>
       </div>
 
-      {/* INDICATEURS DE SYNTHÈSE */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <KpiCard label="Volume Total Mensuel" value={kpis.totalAmount} icon={<Repeat size={20}/>} color="blue" />
         <KpiCard label="Reste à Passer (Mois)" value={kpis.remaining} icon={<Clock size={20}/>} color="rose" highlight />
@@ -137,13 +135,14 @@ const Recurring: React.FC = () => {
 
       <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-[11px] min-w-[1200px]">
+          <table className="w-full text-left text-[11px] min-w-[1300px]">
             <thead className="bg-slate-50 text-slate-500 uppercase font-black tracking-widest">
               <tr>
                 <th className="px-6 py-5">Début</th>
                 <th className="px-6 py-5">Fin</th>
                 <th className="px-6 py-5">Fréquence</th>
                 <th className="px-6 py-5">Catégorie</th>
+                <th className="px-6 py-5">Sous-catégorie</th>
                 <th className="px-6 py-5">Description</th>
                 <th className="px-6 py-5">Source</th>
                 <th className="px-6 py-5">Mode</th>
@@ -167,6 +166,7 @@ const Recurring: React.FC = () => {
                       {categories.find(c => String(c.id) === String(rec.categoryId))?.name || (rec.type === 'GOAL_DEPOSIT' ? 'Épargne' : 'Transfert')}
                     </span>
                   </td>
+                  <td className="px-6 py-4 text-slate-500 font-bold uppercase">{rec.subCategory || '-'}</td>
                   <td className="px-6 py-4 text-slate-600 font-bold uppercase truncate max-w-[180px]">{rec.description}</td>
                   <td className="px-6 py-4">
                     <span className="px-2 py-1 bg-slate-100 rounded-lg font-black uppercase text-[9px]">

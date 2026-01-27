@@ -2,7 +2,7 @@
 import React, { useContext, useState } from 'react';
 import { AppContext } from '../App';
 import { AppContextType, Category, TransactionType } from '../types';
-import { Plus, Trash2, Edit2, X, Check } from 'lucide-react';
+import { Plus, Trash2, Edit2, X, Check, Type as TypeIcon, Smile, MousePointer2, ClipboardPaste } from 'lucide-react';
 import IconPicker from './IconPicker';
 
 const CategoriesView: React.FC = () => {
@@ -52,6 +52,15 @@ const CategoriesView: React.FC = () => {
     }
     setShowForm(null);
     setEditingCat(null);
+  };
+
+  const handlePasteIcon = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const text = e.clipboardData.getData('text');
+    if (text) {
+      const icon = Array.from(text)[0];
+      setFormData(prev => ({ ...prev, icon }));
+    }
   };
 
   return (
@@ -108,46 +117,96 @@ const CategoriesView: React.FC = () => {
 
       {showForm && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-md p-10 shadow-2xl animate-in zoom-in duration-200 relative border border-slate-100 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-2xl p-10 shadow-2xl animate-in zoom-in duration-200 relative border border-slate-100 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-8">
               <h3 className="text-2xl font-black text-slate-900 tracking-tight uppercase">{showForm === 'add' ? 'Nouvelle Catégorie' : 'Modifier Catégorie'}</h3>
               <button onClick={() => { setShowForm(null); setEditingCat(null); }} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={24}/></button>
             </div>
             
             <form onSubmit={handleSave} className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Type</label>
-                  <select className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl outline-none font-bold focus:border-blue-500 uppercase" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value as TransactionType})}>
-                    <option value={TransactionType.EXPENSE}>Dépense</option>
-                    <option value={TransactionType.REVENUE}>Revenu</option>
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nom</label>
-                  <input type="text" required className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl outline-none font-bold focus:border-blue-500 uppercase" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="ex: Shopping" />
-                </div>
-              </div>
-              <IconPicker value={formData.icon || '📁'} onChange={(icon) => setFormData({ ...formData, icon })} />
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Couleur</label>
-                <input type="color" className="w-full h-14 p-1 border-2 border-slate-100 rounded-2xl bg-white" value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} />
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Type d'opération</label>
+                <select className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl outline-none font-bold focus:border-blue-500 uppercase transition-all" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value as TransactionType})}>
+                  <option value={TransactionType.EXPENSE}>Dépense</option>
+                  <option value={TransactionType.REVENUE}>Revenu</option>
+                </select>
               </div>
-              
-              <div className="flex space-x-3 mt-8">
-                <button type="button" onClick={() => { setShowForm(null); setEditingCat(null); }} className="flex-1 py-4 text-slate-400 font-black uppercase text-[10px] tracking-widest border border-slate-100 rounded-2xl hover:bg-slate-50">Annuler</button>
+
+              <div className="flex flex-col md:flex-row gap-4 items-end">
+                <div className="flex-none space-y-1">
+                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center"><Smile size={10} className="mr-1" /> Icône / Collage</label>
+                   <div className="flex items-center space-x-2 h-[60px]">
+                     <div className="w-[60px] h-[60px] flex items-center justify-center text-3xl bg-slate-50 rounded-2xl border-2 border-slate-100 shadow-inner flex-shrink-0 animate-in zoom-in duration-300">
+                        {formData.icon || '📁'}
+                     </div>
+                     <div className="relative">
+                        <input 
+                            type="text" 
+                            placeholder="Coller"
+                            className="w-[100px] h-[60px] px-2 bg-blue-50 border-2 border-dashed border-blue-200 rounded-2xl outline-none font-black text-center focus:border-blue-500 focus:bg-white focus:border-solid transition-all placeholder:text-blue-300 text-xl cursor-copy"
+                            value="" 
+                            onPaste={handlePasteIcon}
+                            onDrop={(e) => { e.preventDefault(); const t = e.dataTransfer.getData('text'); if(t) setFormData(p => ({...p, icon: Array.from(t)[0]})); }}
+                            onDragOver={(e) => e.preventDefault()}
+                            onChange={() => {}} 
+                        />
+                        <div className="absolute -top-1 -right-1 pointer-events-none">
+                           <ClipboardPaste size={12} className="text-blue-400" />
+                        </div>
+                     </div>
+                   </div>
+                </div>
+
+                <div className="flex-1 space-y-1 w-full">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center"><TypeIcon size={10} className="mr-1" /> Nom de la catégorie</label>
+                  <input 
+                    type="text" 
+                    required 
+                    className="w-full h-[60px] px-6 bg-slate-50 border-2 border-transparent rounded-2xl outline-none font-bold focus:border-blue-500 focus:bg-white uppercase transition-all" 
+                    value={formData.name} 
+                    onChange={e => setFormData({ ...formData, name: e.target.value })} 
+                    placeholder="ex: Alimentation" 
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center"><MousePointer2 size={10} className="mr-1" /> Couleur distinctive</label>
+                <div className="flex items-center space-x-4">
+                  <input 
+                    type="color" 
+                    className="w-20 h-14 p-1 bg-slate-50 border-2 border-transparent rounded-2xl outline-none cursor-pointer" 
+                    value={formData.color} 
+                    onChange={e => setFormData({ ...formData, color: e.target.value })} 
+                  />
+                  <div className="flex-1 h-14 bg-slate-50 rounded-2xl border-2 border-slate-100 flex items-center px-6">
+                    <div className="w-4 h-4 rounded-full mr-3 shadow-sm" style={{ backgroundColor: formData.color }} />
+                    <span className="text-xs font-black text-slate-400 uppercase tracking-widest font-mono">{formData.color}</span>
+                  </div>
+                </div>
+              </div>
+
+              <IconPicker 
+                value={formData.icon || '📁'} 
+                onChange={(icon) => setFormData({ ...formData, icon })} 
+                label="Ou choisir dans la bibliothèque"
+                hideInput={true}
+              />
+
+              <div className="flex space-x-4 mt-8">
+                <button type="button" onClick={() => { setShowForm(null); setEditingCat(null); }} className="flex-1 py-4 text-slate-400 font-black uppercase text-[10px] tracking-widest border border-slate-100 rounded-2xl hover:bg-slate-50 transition-all">Annuler</button>
                 <button type="submit" className="flex-1 py-4 bg-slate-900 text-white font-bold rounded-2xl shadow-xl uppercase text-[10px] tracking-widest active:scale-95 transition-transform">Enregistrer</button>
               </div>
             </form>
 
             {showForm === 'edit' && editingCat && (
-              <div className="mt-8 pt-8 border-t border-slate-100">
+              <div className="mt-8 pt-8 border-t border-slate-100 flex flex-col items-center">
                 <button 
                   type="button" 
                   onClick={() => { confirmDelete(editingCat, 'category'); setShowForm(null); }}
                   className="w-full py-4 bg-rose-50 text-rose-500 hover:bg-rose-100 font-black rounded-2xl uppercase text-[10px] tracking-widest border border-rose-100 flex items-center justify-center transition-all active:scale-95 shadow-sm"
                 >
-                  <Trash2 size={16} className="mr-2" /> Supprimer définitivement
+                  <Trash2 size={16} className="mr-2" /> Supprimer cette catégorie
                 </button>
               </div>
             )}

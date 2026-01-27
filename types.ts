@@ -54,7 +54,7 @@ export interface CreditCard {
 export interface Transaction {
   id: string;
   date: string;
-  categoryId: string;
+  categoryId?: string;
   subCategory: string;
   description: string;
   sourceAccountId: string;
