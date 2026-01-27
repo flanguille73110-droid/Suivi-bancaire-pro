@@ -2,7 +2,7 @@
 import React, { useContext, useState } from 'react';
 import { AppContext } from '../App';
 import { Transaction, TransactionType, ReconciliationMarker, AppContextType } from '../types';
-import { Plus, Trash2, Edit2, X, ArrowRight, Target, Check } from 'lucide-react';
+import { Plus, Trash2, Edit2, X, ArrowRight, Target, Check, ArrowUpDown } from 'lucide-react';
 
 const Transactions: React.FC = () => {
   const context = useContext(AppContext) as AppContextType;
@@ -26,7 +26,7 @@ const Transactions: React.FC = () => {
     reconciliation: ReconciliationMarker.NONE
   });
 
-  const [sortConfig, setSortConfig] = useState<{ key: keyof Transaction, direction: 'asc' | 'desc' } | null>(null);
+  const [sortConfig, setSortConfig] = useState<{ key: keyof Transaction, direction: 'asc' | 'desc' } | null>({ key: 'date', direction: 'desc' });
 
   const formatDateDisplay = (dateStr: string) => {
     if (!dateStr) return '-';
@@ -156,7 +156,7 @@ const Transactions: React.FC = () => {
           <table className="w-full text-left text-sm min-w-[1000px]">
             <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] font-black tracking-[0.15em]">
               <tr>
-                <th className="px-6 py-5 border-b cursor-pointer" onClick={() => handleSort('date')}>Date</th>
+                <SortHeader label="Date" active={sortConfig?.key === 'date'} onClick={() => handleSort('date')} />
                 <th className="px-6 py-5 border-b">Catégorie</th>
                 <th className="px-6 py-5 border-b">Sous-catégories</th>
                 <th className="px-6 py-5 border-b">Libellé / Description</th>
@@ -354,5 +354,14 @@ const Transactions: React.FC = () => {
     </div>
   );
 };
+
+const SortHeader: React.FC<{ label: string, active?: boolean, onClick: () => void, className?: string }> = ({ label, active, onClick, className }) => (
+  <th className={`px-6 py-5 border-b cursor-pointer hover:bg-slate-100/50 transition-all ${className || ''}`} onClick={onClick}>
+    <div className={`flex items-center space-x-1 ${className?.includes('right') ? 'justify-end' : className?.includes('center') ? 'justify-center' : ''}`}>
+      <span>{label}</span>
+      <ArrowUpDown size={10} className={active ? 'text-blue-500' : 'text-slate-300'} />
+    </div>
+  </th>
+);
 
 export default Transactions;

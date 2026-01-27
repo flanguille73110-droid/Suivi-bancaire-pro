@@ -26,13 +26,11 @@ const Recurring: React.FC = () => {
     paymentMethod: 'Virement'
   });
 
-  // Calcul des indicateurs
   const kpis = useMemo(() => {
     const active = recurring.filter(r => !r.isPaused);
     const paused = recurring.filter(r => r.isPaused);
     const totalAmount = active.reduce((sum, r) => sum + r.amount, 0);
     
-    // Calcul du "Reste à passer"
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
@@ -57,17 +55,37 @@ const Recurring: React.FC = () => {
     };
   }, [recurring, transactions]);
 
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
   const sortedRecurring = useMemo(() => {
     let items = [...recurring];
     if (sortConfig) {
       items.sort((a: any, b: any) => {
-        if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1;
+        let valA: any = a[sortConfig.key];
+        let valB: any = b[sortConfig.key];
+
+        // Traitement spécial pour le nom de la catégorie au lieu de l'ID
+        if (sortConfig.key === 'categoryId') {
+          valA = categories.find(c => String(c.id) === String(a.categoryId))?.name || (a.type === 'GOAL_DEPOSIT' ? 'Épargne' : 'Transfert');
+          valB = categories.find(c => String(c.id) === String(b.categoryId))?.name || (b.type === 'GOAL_DEPOSIT' ? 'Épargne' : 'Transfert');
+        }
+
+        if (valA === undefined) valA = '';
+        if (valB === undefined) valB = '';
+
+        if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
         return 0;
       });
     }
     return items;
-  }, [recurring, sortConfig]);
+  }, [recurring, sortConfig, categories]);
 
   const handleZap = (rec: RecurringTransaction) => {
     const newT: Transaction = {
@@ -135,62 +153,79 @@ const Recurring: React.FC = () => {
 
       <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-[11px] min-w-[1300px]">
+          <table className="w-full text-left text-[11px] min-w-[1400px]">
             <thead className="bg-slate-50 text-slate-500 uppercase font-black tracking-widest">
               <tr>
-                <th className="px-6 py-5">Début</th>
+                <SortHeader label="Début" active={sortConfig?.key === 'startDate'} onClick={() => handleSort('startDate')} />
                 <th className="px-6 py-5">Fin</th>
                 <th className="px-6 py-5">Fréquence</th>
-                <th className="px-6 py-5">Catégorie</th>
-                <th className="px-6 py-5">Sous-catégorie</th>
+                <SortHeader label="Catégorie" active={sortConfig?.key === 'categoryId'} onClick={() => handleSort('categoryId')} />
+                <SortHeader label="Sous-catégorie" active={sortConfig?.key === 'subCategory'} onClick={() => handleSort('subCategory')} />
                 <th className="px-6 py-5">Description</th>
                 <th className="px-6 py-5">Source</th>
                 <th className="px-6 py-5">Mode</th>
+                <th className="px-6 py-5">Destination</th>
                 <th className="px-6 py-5 text-right">Montant</th>
                 <th className="px-6 py-5 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {sortedRecurring.map((rec: any) => (
-                <tr key={rec.id} className={`hover:bg-slate-50 group transition-all ${rec.isPaused ? 'bg-slate-50/50 grayscale' : ''}`}>
-                  <td className="px-6 py-4 text-slate-400 font-bold">{rec.startDate}</td>
-                  <td className="px-6 py-4 text-slate-400 font-bold">{rec.endDate || '-'}</td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded-lg font-black uppercase text-[9px] ${rec.isPaused ? 'bg-slate-200 text-slate-400' : 'bg-blue-50 text-blue-600'}`}>
-                      {rec.frequency}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="font-black text-slate-700 uppercase flex items-center">
-                      <span className="mr-2 text-base">{categories.find(c => String(c.id) === String(rec.categoryId))?.icon || (rec.type === 'GOAL_DEPOSIT' ? '🎯' : '💸')}</span>
-                      {categories.find(c => String(c.id) === String(rec.categoryId))?.name || (rec.type === 'GOAL_DEPOSIT' ? 'Épargne' : 'Transfert')}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-slate-500 font-bold uppercase">{rec.subCategory || '-'}</td>
-                  <td className="px-6 py-4 text-slate-600 font-bold uppercase truncate max-w-[180px]">{rec.description}</td>
-                  <td className="px-6 py-4">
-                    <span className="px-2 py-1 bg-slate-100 rounded-lg font-black uppercase text-[9px]">
-                      {accounts.find(a => String(a.id) === String(rec.sourceAccountId))?.name}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-slate-500 font-bold uppercase">{rec.paymentMethod || 'Virement'}</td>
-                  <td className={`px-6 py-4 text-right font-black text-sm ${rec.isPaused ? 'text-slate-300' : rec.type === 'REVENUE' ? 'text-emerald-500' : 'text-rose-500'}`}>
-                    {rec.type === 'REVENUE' ? '+' : '-'}{rec.amount.toFixed(2)}€
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <div className="flex items-center justify-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {!rec.isPaused && (
-                         <button onClick={() => handleZap(rec)} title="Exécuter maintenant" className="p-2 text-amber-500 hover:bg-amber-50 rounded-xl transition-all"><Zap size={14} fill="currentColor"/></button>
-                      )}
-                      <button onClick={() => togglePause(rec)} title={rec.isPaused ? "Réactiver" : "Mettre en pause"} className={`p-2 rounded-xl transition-all ${rec.isPaused ? 'text-emerald-500 hover:bg-emerald-50' : 'text-slate-400 hover:bg-slate-100'}`}>
-                        {rec.isPaused ? <Play size={14} fill="currentColor" /> : <Pause size={14} fill="currentColor" />}
-                      </button>
-                      <button onClick={() => { setEditingRec(rec); setFormData({...rec}); setShowForm('edit'); }} className="p-2 text-blue-500 hover:bg-blue-50 rounded-xl transition-all"><Edit2 size={14}/></button>
-                      <button onClick={() => confirmDelete(rec, 'recurring')} className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-all"><Trash2 size={14}/></button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {sortedRecurring.map((rec: any) => {
+                const destAcc = rec.destinationAccountId ? accounts.find(a => String(a.id) === String(rec.destinationAccountId)) : null;
+                const destGoal = rec.targetGoalId ? goals.find(g => String(g.id) === String(rec.targetGoalId)) : null;
+                
+                return (
+                  <tr key={rec.id} className={`hover:bg-slate-50 group transition-all ${rec.isPaused ? 'bg-slate-50/50 grayscale' : ''}`}>
+                    <td className="px-6 py-4 text-slate-400 font-bold">{rec.startDate}</td>
+                    <td className="px-6 py-4 text-slate-400 font-bold">{rec.endDate || '-'}</td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 rounded-lg font-black uppercase text-[9px] ${rec.isPaused ? 'bg-slate-200 text-slate-400' : 'bg-blue-50 text-blue-600'}`}>
+                        {rec.frequency}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="font-black text-slate-700 uppercase flex items-center">
+                        <span className="mr-2 text-base">{categories.find(c => String(c.id) === String(rec.categoryId))?.icon || (rec.type === 'GOAL_DEPOSIT' ? '🎯' : '💸')}</span>
+                        {categories.find(c => String(c.id) === String(rec.categoryId))?.name || (rec.type === 'GOAL_DEPOSIT' ? 'Épargne' : 'Transfert')}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-slate-500 font-bold uppercase">{rec.subCategory || '-'}</td>
+                    <td className="px-6 py-4 text-slate-600 font-bold uppercase truncate max-w-[180px]">{rec.description}</td>
+                    <td className="px-6 py-4">
+                      <span className="px-2 py-1 bg-slate-100 rounded-lg font-black uppercase text-[9px]">
+                        {accounts.find(a => String(a.id) === String(rec.sourceAccountId))?.name}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-slate-500 font-bold uppercase">{rec.paymentMethod || 'Virement'}</td>
+                    <td className="px-6 py-4">
+                      {destAcc ? (
+                        <div className="flex items-center text-blue-500 font-black text-[9px] uppercase">
+                          <ArrowRight size={10} className="mr-1" /> {destAcc.name}
+                        </div>
+                      ) : destGoal ? (
+                        <div className="flex items-center text-pink-500 font-black text-[9px] uppercase">
+                           <Target size={10} className="mr-1" /> {destGoal.icon} {destGoal.name}
+                        </div>
+                      ) : <span className="text-slate-200">-</span>}
+                    </td>
+                    <td className={`px-6 py-4 text-right font-black text-sm ${rec.isPaused ? 'text-slate-300' : rec.type === 'REVENUE' ? 'text-emerald-500' : 'text-rose-500'}`}>
+                      {rec.type === 'REVENUE' ? '+' : '-'}{rec.amount.toFixed(2)}€
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <div className="flex items-center justify-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {!rec.isPaused && (
+                           <button onClick={() => handleZap(rec)} title="Exécuter maintenant" className="p-2 text-amber-500 hover:bg-amber-50 rounded-xl transition-all"><Zap size={14} fill="currentColor"/></button>
+                        )}
+                        <button onClick={() => togglePause(rec)} title={rec.isPaused ? "Réactiver" : "Mettre en pause"} className={`p-2 rounded-xl transition-all ${rec.isPaused ? 'text-emerald-500 hover:bg-emerald-50' : 'text-slate-400 hover:bg-slate-100'}`}>
+                          {rec.isPaused ? <Play size={14} fill="currentColor" /> : <Pause size={14} fill="currentColor" />}
+                        </button>
+                        <button onClick={() => { setEditingRec(rec); setFormData({...rec}); setShowForm('edit'); }} className="p-2 text-blue-500 hover:bg-blue-50 rounded-xl transition-all"><Edit2 size={14}/></button>
+                        <button onClick={() => confirmDelete(rec, 'recurring')} className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-all"><Trash2 size={14}/></button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -341,5 +376,14 @@ const KpiCard: React.FC<{ label: string, value: number, icon: React.ReactNode, c
     </div>
   );
 };
+
+const SortHeader: React.FC<{ label: string, active?: boolean, onClick: () => void, className?: string }> = ({ label, active, onClick, className }) => (
+  <th className={`px-6 py-5 border-b cursor-pointer hover:bg-slate-100/50 transition-all ${className || ''}`} onClick={onClick}>
+    <div className={`flex items-center space-x-1 ${className?.includes('right') ? 'justify-end' : className?.includes('center') ? 'justify-center' : ''}`}>
+      <span>{label}</span>
+      <ArrowUpDown size={10} className={active ? 'text-blue-500' : 'text-slate-300'} />
+    </div>
+  </th>
+);
 
 export default Recurring;
