@@ -45,8 +45,11 @@ const Transactions: React.FC = () => {
   const sortedTransactions = [...transactions].sort((a, b) => {
     if (!sortConfig) return 0;
     const { key, direction } = sortConfig;
-    if (a[key]! < b[key]!) return direction === 'asc' ? -1 : 1;
-    if (a[key]! > b[key]!) return direction === 'asc' ? 1 : -1;
+    const valA = a[key];
+    const valB = b[key];
+    if (valA === undefined || valB === undefined) return 0;
+    if (valA < valB) return direction === 'asc' ? -1 : 1;
+    if (valA > valB) return direction === 'asc' ? 1 : -1;
     return 0;
   });
 
@@ -80,8 +83,8 @@ const Transactions: React.FC = () => {
       sourceAccountId: t.sourceAccountId,
       destinationAccountId: t.destinationAccountId || '',
       targetGoalId: '', 
-      categoryId: t.categoryId,
-      subCategory: t.subCategory,
+      categoryId: t.categoryId || '',
+      subCategory: t.subCategory || '',
       description: t.description,
       amount: amount,
       paymentMethod: isCheque ? 'Chèque' : t.paymentMethod,
@@ -108,8 +111,8 @@ const Transactions: React.FC = () => {
       type: formData.type,
       sourceAccountId: formData.sourceAccountId,
       destinationAccountId: (isTransfer || isGoalDeposit) ? formData.destinationAccountId : undefined,
-      categoryId: formData.categoryId,
-      subCategory: formData.subCategory,
+      categoryId: formData.categoryId || undefined,
+      subCategory: formData.subCategory || '',
       description: isGoalDeposit ? `Épargne Objectif : ${goals.find(g => String(g.id) === String(formData.targetGoalId))?.name || ''}` : formData.description,
       revenue: formData.type === TransactionType.REVENUE ? formData.amount : 0,
       expense: (formData.type === TransactionType.EXPENSE || isTransfer || isGoalDeposit) ? formData.amount : 0,
@@ -221,7 +224,6 @@ const Transactions: React.FC = () => {
             </div>
             
             <form onSubmit={onSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-              {/* RANGÉE 1: DATE & TYPE */}
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Date d'opération</label>
                 <input type="date" required className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:border-blue-500 outline-none font-bold" value={formData.date} onChange={e => setFormData({ ...formData, date: e.target.value })} />
@@ -236,7 +238,6 @@ const Transactions: React.FC = () => {
                 </select>
               </div>
 
-              {/* RANGÉE 2: OBJECTIF CIBLE (Conditionnelle) */}
               {formData.type === TransactionType.GOAL_DEPOSIT && (
                 <div className="md:col-span-2 space-y-1 animate-in slide-in-from-top duration-200">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Objectif Cible 🎯</label>
@@ -247,7 +248,6 @@ const Transactions: React.FC = () => {
                 </div>
               )}
 
-              {/* RANGÉE 3: COMPTE SOURCE & DESTINATION */}
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Compte Source (Débit)</label>
                 <select required className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:border-blue-500 outline-none font-bold uppercase" value={formData.sourceAccountId} onChange={e => setFormData({ ...formData, sourceAccountId: e.target.value })}>
@@ -267,7 +267,6 @@ const Transactions: React.FC = () => {
                 <div className="hidden md:block" />
               )}
 
-              {/* RANGÉE 4: MODE DE PAIEMENT & MONTANT */}
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mode de paiement</label>
                 <select className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:border-blue-500 outline-none font-bold uppercase" value={formData.paymentMethod} onChange={e => setFormData({ ...formData, paymentMethod: e.target.value })}>
@@ -279,7 +278,6 @@ const Transactions: React.FC = () => {
                 <input type="number" step="0.01" required className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl text-2xl font-black focus:border-blue-500 outline-none" value={formData.amount} onChange={e => setFormData({ ...formData, amount: Number(e.target.value) })} />
               </div>
 
-              {/* RANGÉE 5: NUMÉRO DE CHÈQUE (Conditionnelle) */}
               {formData.paymentMethod === 'Chèque' && (
                 <div className="md:col-span-2 space-y-1 animate-in slide-in-from-top duration-200">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Numéro du chèque</label>
@@ -293,7 +291,6 @@ const Transactions: React.FC = () => {
                 </div>
               )}
 
-              {/* RANGÉE 6: CATÉGORIE & SOUS-CATÉGORIE */}
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Catégorie</label>
                 <select 
@@ -324,13 +321,11 @@ const Transactions: React.FC = () => {
                 </select>
               </div>
 
-              {/* RANGÉE 7: DESCRIPTION */}
               <div className="md:col-span-2 space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Libellé / Mémo (Description)</label>
                 <textarea className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl h-20 focus:border-blue-500 outline-none font-bold" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} placeholder="ex: Courses hebdomadaires" />
               </div>
 
-              {/* RANGÉE 8: RAPPROCHEMENT */}
               <div className="md:col-span-2 space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Rapprochement Bancaire (Marqueur)</label>
                 <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">

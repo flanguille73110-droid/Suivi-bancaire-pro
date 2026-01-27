@@ -55,7 +55,7 @@ export interface Transaction {
   id: string;
   date: string;
   categoryId?: string;
-  subCategory: string;
+  subCategory?: string;
   description: string;
   sourceAccountId: string;
   destinationAccountId?: string;
@@ -72,8 +72,8 @@ export interface RecurringTransaction {
   endDate?: string;
   lastProcessedDate?: string;
   type: TransactionType;
-  categoryId: string;
-  subCategory: string;
+  categoryId?: string;
+  subCategory?: string;
   description: string;
   sourceAccountId: string;
   destinationAccountId?: string;
