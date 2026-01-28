@@ -1,7 +1,7 @@
 
 import React, { useContext } from 'react';
 import { AppContext } from '../App';
-import { AppContextType, BankAccount } from '../types';
+import { AppContextType, BankAccount, RecurringTransaction } from '../types';
 import { 
   TrendingUp, 
   AlertTriangle, 
@@ -30,6 +30,14 @@ const Dashboard: React.FC = () => {
     const spent = categoryTransactions.reduce((sum, t) => sum + t.expense, 0);
     return spent >= b.amount * 0.8;
   });
+
+  // Fonction pour formater la date de l'échéance au format JJ/MM
+  const formatRecurringDate = (startDateStr: string) => {
+    const date = new Date(startDateStr);
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (new Date().getMonth() + 1).toString().padStart(2, '0');
+    return `${day}/${month}`;
+  };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-12">
@@ -133,8 +141,14 @@ const Dashboard: React.FC = () => {
                     <Clock size={18} className="text-slate-400" />
                   </div>
                   <div>
-                    <p className="text-sm font-black text-slate-900 uppercase tracking-tight truncate max-w-[120px]">{rec.description || 'Contrat'}</p>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{rec.frequency}</p>
+                    {/* Affichage de la sous-catégorie en gras et majuscules */}
+                    <p className="text-sm font-black text-slate-900 uppercase tracking-tight truncate max-w-[120px]">
+                      {rec.subCategory || 'Général'}
+                    </p>
+                    {/* Affichage de la date au format JJ/MM */}
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                      {formatRecurringDate(rec.startDate)}
+                    </p>
                   </div>
                 </div>
                 <div className="text-right">

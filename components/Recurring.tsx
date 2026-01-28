@@ -139,6 +139,21 @@ const Recurring: React.FC = () => {
     setShowForm(null);
   };
 
+  const checkifPassedThisMonth = (rec: RecurringTransaction) => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    return transactions.some(t => {
+      const tDate = new Date(t.date);
+      return tDate.getMonth() === currentMonth && 
+             tDate.getFullYear() === currentYear &&
+             String(t.sourceAccountId) === String(rec.sourceAccountId) &&
+             (Math.abs(t.expense - rec.amount) < 0.01 || Math.abs(t.revenue - rec.amount) < 0.01) &&
+             t.description.toLowerCase().includes(rec.description.toLowerCase());
+    });
+  };
+
   const selectedCategory = categories.find(c => String(c.id) === String(formData.categoryId));
 
   return (
@@ -162,19 +177,18 @@ const Recurring: React.FC = () => {
 
       <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-[11px] min-w-[1400px]">
+          <table className="w-full text-left text-[11px] min-w-[1200px]">
             <thead className="bg-slate-50 text-slate-500 uppercase font-black tracking-widest">
               <tr>
                 <SortHeader label="Début" active={sortConfig?.key === 'startDate'} onClick={() => handleSort('startDate')} />
                 <th className="px-6 py-5">Fin</th>
-                <th className="px-6 py-5">Fréquence</th>
                 <SortHeader label="Catégorie" active={sortConfig?.key === 'categoryId'} onClick={() => handleSort('categoryId')} />
                 <SortHeader label="Sous-catégorie" active={sortConfig?.key === 'subCategory'} onClick={() => handleSort('subCategory')} />
                 <th className="px-6 py-5">Description</th>
                 <th className="px-6 py-5">Source</th>
-                <th className="px-6 py-5">Mode</th>
                 <th className="px-6 py-5">Destination</th>
                 <th className="px-6 py-5 text-right">Montant</th>
+                <th className="px-6 py-5 text-center">Statut</th>
                 <th className="px-6 py-5 text-center">Actions</th>
               </tr>
             </thead>
@@ -182,16 +196,12 @@ const Recurring: React.FC = () => {
               {sortedRecurring.map((rec: any) => {
                 const destAcc = rec.destinationAccountId ? accounts.find(a => String(a.id) === String(rec.destinationAccountId)) : null;
                 const destGoal = rec.targetGoalId ? goals.find(g => String(g.id) === String(rec.targetGoalId)) : null;
+                const isPassed = checkifPassedThisMonth(rec);
                 
                 return (
                   <tr key={rec.id} className={`hover:bg-slate-50 group transition-all ${rec.isPaused ? 'bg-slate-50/50 grayscale' : ''}`}>
                     <td className="px-6 py-4 text-slate-400 font-bold">{rec.startDate}</td>
                     <td className="px-6 py-4 text-slate-400 font-bold">{rec.endDate || '-'}</td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded-lg font-black uppercase text-[9px] ${rec.isPaused ? 'bg-slate-200 text-slate-400' : 'bg-blue-50 text-blue-600'}`}>
-                        {rec.frequency}
-                      </span>
-                    </td>
                     <td className="px-6 py-4">
                       <span className="font-black text-slate-700 uppercase flex items-center">
                         <span className="mr-2 text-base">{categories.find(c => String(c.id) === String(rec.categoryId))?.icon || (rec.type === 'GOAL_DEPOSIT' ? '🎯' : '💸')}</span>
@@ -205,7 +215,6 @@ const Recurring: React.FC = () => {
                         {accounts.find(a => String(a.id) === String(rec.sourceAccountId))?.name}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-slate-500 font-bold uppercase">{rec.paymentMethod || 'Virement'}</td>
                     <td className="px-6 py-4">
                       {destAcc ? (
                         <div className="flex items-center text-blue-500 font-black text-[9px] uppercase">
@@ -219,6 +228,16 @@ const Recurring: React.FC = () => {
                     </td>
                     <td className={`px-6 py-4 text-right font-black text-sm ${rec.isPaused ? 'text-slate-300' : rec.type === 'REVENUE' ? 'text-emerald-500' : 'text-rose-500'}`}>
                       {rec.type === 'REVENUE' ? '+' : '-'}{rec.amount.toFixed(2)}€
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      {isPassed ? (
+                        <div className="flex items-center justify-center space-x-1.5 text-emerald-500 animate-in zoom-in duration-300">
+                           <CheckCircle2 size={16} />
+                           <span className="font-black uppercase text-[9px] tracking-widest">Payé</span>
+                        </div>
+                      ) : (
+                        <span className="text-slate-200">-</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-center">
                       <div className="flex items-center justify-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
