@@ -9,6 +9,7 @@ const FinancialAnalysis: React.FC = () => {
   const { transactions, accounts, categories } = context;
 
   const [showFilters, setShowFilters] = useState(false);
+  const [displayAmountFilter, setDisplayAmountFilter] = useState("");
   const [filters, setFilters] = useState({
     categoryId: '',
     subCategory: '',
@@ -92,6 +93,16 @@ const FinancialAnalysis: React.FC = () => {
       amount: '',
       type: ''
     });
+    setDisplayAmountFilter("");
+  };
+
+  const handleAmountFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value.replace('.', ',');
+    if (/^[0-9]*,?[0-9]*$/.test(val)) {
+      setDisplayAmountFilter(val);
+      const numericVal = val.replace(',', '.');
+      setFilters({ ...filters, amount: numericVal });
+    }
   };
 
   const isFilterActive = filters.categoryId || filters.subCategory || filters.month !== '' || filters.year || 
@@ -177,12 +188,12 @@ const FinancialAnalysis: React.FC = () => {
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Montant (€)</label>
               <input 
-                type="number"
-                step="0.01"
-                placeholder="Ex: 50.00"
+                type="text"
+                inputMode="decimal"
+                placeholder="Ex: 50,00"
                 className="w-full px-4 py-3 bg-slate-50 border-2 border-transparent rounded-xl outline-none font-bold focus:border-blue-500 transition-all"
-                value={filters.amount}
-                onChange={(e) => setFilters({...filters, amount: e.target.value})}
+                value={displayAmountFilter}
+                onChange={handleAmountFilterChange}
               />
             </div>
           </div>

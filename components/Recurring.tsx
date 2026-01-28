@@ -9,6 +9,7 @@ const Recurring: React.FC = () => {
   const { recurring, accounts, transactions, categories, goals, addRecurring, confirmDelete, updateRecurring, addTransaction, notify } = context;
   const [showForm, setShowForm] = useState<'add' | 'edit' | null>(null);
   const [editingRec, setEditingRec] = useState<RecurringTransaction | null>(null);
+  const [displayAmount, setDisplayAmount] = useState("");
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>({ key: 'startDate', direction: 'asc' });
   
   const [formData, setFormData] = useState({
@@ -70,7 +71,6 @@ const Recurring: React.FC = () => {
         let valA: any = a[sortConfig.key];
         let valB: any = b[sortConfig.key];
 
-        // Traitement spécial pour le nom de la catégorie au lieu de l'ID
         if (sortConfig.key === 'categoryId') {
           valA = categories.find(c => String(c.id) === String(a.categoryId))?.name || (a.type === 'GOAL_DEPOSIT' ? 'Épargne' : 'Transfert');
           valB = categories.find(c => String(c.id) === String(b.categoryId))?.name || (b.type === 'GOAL_DEPOSIT' ? 'Épargne' : 'Transfert');
@@ -111,6 +111,15 @@ const Recurring: React.FC = () => {
     notify(rec.isPaused ? "▶️ Échéance réactivée" : "⏸️ Échéance mise en pause");
   };
 
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value.replace('.', ',');
+    if (/^[0-9]*,?[0-9]*$/.test(val)) {
+      setDisplayAmount(val);
+      const numericVal = parseFloat(val.replace(',', '.'));
+      setFormData({ ...formData, amount: isNaN(numericVal) ? 0 : numericVal });
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.sourceAccountId || (!formData.categoryId && formData.type !== TransactionType.GOAL_DEPOSIT) || !formData.amount) return;
@@ -137,7 +146,7 @@ const Recurring: React.FC = () => {
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-black text-slate-800 tracking-tight uppercase">Échéancier Récurrent</h2>
         <button 
-          onClick={() => { setFormData({ ...formData, startDate: new Date().toISOString().split('T')[0], amount: 0, endDate: '', targetGoalId: '', destinationAccountId: '', categoryId: '', subCategory: '' }); setShowForm('add'); }}
+          onClick={() => { setFormData({ ...formData, startDate: new Date().toISOString().split('T')[0], amount: 0, endDate: '', targetGoalId: '', destinationAccountId: '', categoryId: '', subCategory: '' }); setDisplayAmount(""); setShowForm('add'); }}
           className="px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all flex items-center border border-white/10"
         >
           <Plus size={18} className="mr-2" /> Créer une Occurrence
@@ -219,7 +228,7 @@ const Recurring: React.FC = () => {
                         <button onClick={() => togglePause(rec)} title={rec.isPaused ? "Réactiver" : "Mettre en pause"} className={`p-2 rounded-xl transition-all ${rec.isPaused ? 'text-emerald-500 hover:bg-emerald-50' : 'text-slate-400 hover:bg-slate-100'}`}>
                           {rec.isPaused ? <Play size={14} fill="currentColor" /> : <Pause size={14} fill="currentColor" />}
                         </button>
-                        <button onClick={() => { setEditingRec(rec); setFormData({...rec}); setShowForm('edit'); }} className="p-2 text-blue-500 hover:bg-blue-50 rounded-xl transition-all"><Edit2 size={14}/></button>
+                        <button onClick={() => { setEditingRec(rec); setFormData({...rec}); setDisplayAmount(rec.amount.toString().replace('.', ',')); setShowForm('edit'); }} className="p-2 text-blue-500 hover:bg-blue-50 rounded-xl transition-all"><Edit2 size={14}/></button>
                         <button onClick={() => confirmDelete(rec, 'recurring')} className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-all"><Trash2 size={14}/></button>
                       </div>
                     </td>
@@ -305,7 +314,15 @@ const Recurring: React.FC = () => {
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Montant (€)</label>
-                <input type="number" step="0.01" required className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl font-black outline-none focus:border-blue-500" value={formData.amount} onChange={e => setFormData({...formData, amount: Number(e.target.value)})} />
+                <input 
+                  type="text" 
+                  inputMode="decimal"
+                  required 
+                  className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl font-black outline-none focus:border-blue-500" 
+                  value={displayAmount} 
+                  onChange={handleAmountChange} 
+                  placeholder="0,00"
+                />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Catégorie</label>

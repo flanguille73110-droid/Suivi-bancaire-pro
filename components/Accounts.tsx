@@ -13,6 +13,9 @@ const Accounts: React.FC = () => {
   const [editingAccount, setEditingAccount] = useState<BankAccount | null>(null);
   const [showTransactionForm, setShowTransactionForm] = useState(false);
   
+  const [displayInitialBalance, setDisplayInitialBalance] = useState("");
+  const [displayTAmount, setDisplayTAmount] = useState("");
+  
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'reconciliation', direction: 'asc' });
 
   const [formData, setFormData] = useState<Partial<BankAccount>>({ 
@@ -58,7 +61,6 @@ const Accounts: React.FC = () => {
     }, acc.initialBalance);
   };
 
-  // Calcul du reste à passer pour un compte spécifique
   const calculateRemainingRecurring = (accId: string) => {
     const now = new Date();
     const currentMonth = now.getMonth();
@@ -116,7 +118,17 @@ const Accounts: React.FC = () => {
       chequeNumber: '',
       reconciliation: ReconciliationMarker.NONE
     });
+    setDisplayTAmount("");
     setShowTransactionForm(true);
+  };
+
+  const handleTAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value.replace('.', ',');
+    if (/^[0-9]*,?[0-9]*$/.test(val)) {
+      setDisplayTAmount(val);
+      const numericVal = parseFloat(val.replace(',', '.'));
+      setTFormData({ ...tFormData, amount: isNaN(numericVal) ? 0 : numericVal });
+    }
   };
 
   const handleSaveTransaction = (e: React.FormEvent) => {
@@ -226,6 +238,7 @@ const Accounts: React.FC = () => {
               onClick={() => { 
                 setEditingAccount(null); 
                 setFormData({ name: '', icon: '🏦', color: '#6366f1', initialBalance: 0, isPrincipal: false, bankBalanceManual: 0, cardOutstandingManual: 0 }); 
+                setDisplayInitialBalance("");
                 setShowForm('add'); 
               }} 
               className="px-6 py-3 bg-gradient-to-r from-blue-500 to-pink-500 text-white rounded-2xl shadow-xl font-black uppercase text-[10px] tracking-widest hover:scale-[1.02] active:scale-95 transition-all flex items-center"
@@ -251,7 +264,7 @@ const Accounts: React.FC = () => {
                     <span>En-cours: {acc.cardOutstandingManual?.toLocaleString('fr-FR') || 0}€</span>
                   </div>
                   <button 
-                    onClick={(e) => { e.stopPropagation(); setEditingAccount(acc); setFormData({ ...acc }); setShowForm('edit'); }} 
+                    onClick={(e) => { e.stopPropagation(); setEditingAccount(acc); setFormData({ ...acc }); setDisplayInitialBalance(acc.initialBalance.toString().replace('.', ',')); setShowForm('edit'); }} 
                     className="absolute top-6 right-6 opacity-0 group-hover:opacity-100 px-3 py-1.5 bg-slate-50 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-all font-bold text-[10px] uppercase border border-slate-100"
                   >
                     <Edit2 size={12} className="inline mr-1" /> Modifier
@@ -432,7 +445,15 @@ const Accounts: React.FC = () => {
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Montant (€)</label>
-                <input type="number" step="0.01" required className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl font-black outline-none" value={tFormData.amount} onChange={e => setTFormData({...tFormData, amount: Number(e.target.value)})} />
+                <input 
+                  type="text" 
+                  inputMode="decimal"
+                  required 
+                  className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl font-black outline-none" 
+                  value={displayTAmount} 
+                  onChange={handleTAmountChange}
+                  placeholder="0,00"
+                />
               </div>
 
               {tFormData.paymentMethod === 'Chèque' && (
@@ -522,7 +543,22 @@ const Accounts: React.FC = () => {
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Solde Initial (€)</label>
-                  <input type="number" required className="w-full px-6 py-4 h-14 bg-slate-50 border-2 border-transparent rounded-2xl outline-none font-black" value={formData.initialBalance} onChange={e => setFormData({ ...formData, initialBalance: Number(e.target.value) })} />
+                  <input 
+                    type="text" 
+                    inputMode="decimal"
+                    required 
+                    className="w-full px-6 py-4 h-14 bg-slate-50 border-2 border-transparent rounded-2xl outline-none font-black" 
+                    value={displayInitialBalance} 
+                    onChange={e => {
+                      let val = e.target.value.replace('.', ',');
+                      if (/^[0-9]*,?[0-9]*$/.test(val)) {
+                        setDisplayInitialBalance(val);
+                        const numericVal = parseFloat(val.replace(',', '.'));
+                        setFormData({ ...formData, initialBalance: isNaN(numericVal) ? 0 : numericVal });
+                      }
+                    }} 
+                    placeholder="0,00"
+                  />
                 </div>
               </div>
 
@@ -556,6 +592,8 @@ const Accounts: React.FC = () => {
 };
 
 const StatItem: React.FC<{ label: string, value: number, isManual?: boolean, highlight?: string, onManualChange?: (v: number) => void, isInGradient?: boolean }> = ({ label, value, isManual, highlight, onManualChange, isInGradient }) => {
+  const [displayText, setDisplayText] = useState(value === 0 ? "" : value.toString().replace('.', ','));
+
   const highlights: Record<string, string> = {
     blue: isInGradient ? 'text-blue-100/90' : 'text-blue-600',
     rose: isInGradient ? 'text-red-200 drop-shadow-sm font-black' : 'text-rose-600',
@@ -568,16 +606,26 @@ const StatItem: React.FC<{ label: string, value: number, isManual?: boolean, hig
   const labelColor = isInGradient ? 'text-white/70' : 'text-slate-400';
   const borderClass = isInGradient ? 'border-white/30 focus-within:border-white' : 'border-slate-100 focus-within:border-blue-400';
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value.replace('.', ',');
+    if (/^[0-9]*,?[0-9]*$/.test(val)) {
+      setDisplayText(val);
+      const numericVal = parseFloat(val.replace(',', '.'));
+      onManualChange?.(isNaN(numericVal) ? 0 : numericVal);
+    }
+  };
+
   return (
     <div className="flex flex-col space-y-1">
       <p className={`text-[9px] font-black uppercase tracking-widest leading-tight ${labelColor}`}>{label}</p>
       {isManual ? (
         <div className={`flex items-center border-b-2 transition-all ${borderClass}`}>
           <input 
-            type="number" 
+            type="text" 
+            inputMode="decimal"
             className={`w-full bg-transparent border-none p-0 text-lg font-black focus:ring-0 transition-all ${highlights[effectiveHighlight]}`}
-            value={value}
-            onChange={(e) => onManualChange?.(Number(e.target.value))}
+            value={displayText}
+            onChange={handleChange}
           />
           <span className={`${isInGradient ? 'text-white/50' : 'text-slate-300'} font-bold ml-1`}>€</span>
         </div>

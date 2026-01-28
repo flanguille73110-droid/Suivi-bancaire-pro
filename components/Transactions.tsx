@@ -1,5 +1,5 @@
 
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { AppContext } from '../App';
 import { Transaction, TransactionType, ReconciliationMarker, AppContextType } from '../types';
 import { Plus, Trash2, Edit2, X, ArrowRight, Target, Check, ArrowUpDown } from 'lucide-react';
@@ -10,6 +10,7 @@ const Transactions: React.FC = () => {
   
   const [showForm, setShowForm] = useState<'add' | 'edit' | null>(null);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [displayAmount, setDisplayAmount] = useState("");
   
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -68,6 +69,7 @@ const Transactions: React.FC = () => {
       chequeNumber: '',
       reconciliation: ReconciliationMarker.NONE
     });
+    setDisplayAmount("");
     setShowForm('add');
   };
 
@@ -91,7 +93,18 @@ const Transactions: React.FC = () => {
       chequeNumber: chequeNum,
       reconciliation: t.reconciliation || ReconciliationMarker.NONE
     });
+    setDisplayAmount(amount.toString().replace('.', ','));
     setShowForm('edit');
+  };
+
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value.replace('.', ',');
+    // Autorise uniquement les chiffres et une seule virgule
+    if (/^[0-9]*,?[0-9]*$/.test(val)) {
+      setDisplayAmount(val);
+      const numericVal = parseFloat(val.replace(',', '.'));
+      setFormData({ ...formData, amount: isNaN(numericVal) ? 0 : numericVal });
+    }
   };
 
   const onSubmit = (e: React.FormEvent) => {
@@ -275,7 +288,15 @@ const Transactions: React.FC = () => {
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Montant (€)</label>
-                <input type="number" step="0.01" required className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl text-2xl font-black focus:border-blue-500 outline-none" value={formData.amount} onChange={e => setFormData({ ...formData, amount: Number(e.target.value) })} />
+                <input 
+                  type="text" 
+                  inputMode="decimal"
+                  required 
+                  className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl text-2xl font-black focus:border-blue-500 outline-none" 
+                  value={displayAmount} 
+                  onChange={handleAmountChange} 
+                  placeholder="0,00"
+                />
               </div>
 
               {formData.paymentMethod === 'Chèque' && (

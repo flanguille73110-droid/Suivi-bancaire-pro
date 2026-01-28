@@ -11,12 +11,17 @@ const Goals: React.FC = () => {
   const [showForm, setShowForm] = useState<'add' | 'edit' | null>(null);
   const [editingGoal, setEditingGoal] = useState<SavingsGoal | null>(null);
   
+  const [displayTargetAmount, setDisplayTargetAmount] = useState("");
+  const [displayCurrentAmount, setDisplayCurrentAmount] = useState("");
+
   const [formData, setFormData] = useState<Partial<SavingsGoal>>({
     name: '', icon: '🎯', targetAmount: 0, currentAmount: 0, color: '#ec4899', accountId: accounts[0]?.id || '', deadline: ''
   });
 
   const handleOpenAdd = () => {
     setFormData({ name: '', icon: '🎯', targetAmount: 0, currentAmount: 0, color: '#ec4899', accountId: accounts[0]?.id || '', deadline: '' });
+    setDisplayTargetAmount("");
+    setDisplayCurrentAmount("");
     setShowForm('add');
     setEditingGoal(null);
   };
@@ -24,6 +29,8 @@ const Goals: React.FC = () => {
   const handleOpenEdit = (goal: SavingsGoal) => {
     setEditingGoal(goal);
     setFormData({ ...goal });
+    setDisplayTargetAmount(goal.targetAmount.toString().replace('.', ','));
+    setDisplayCurrentAmount(goal.currentAmount.toString().replace('.', ','));
     setShowForm('edit');
   };
 
@@ -53,16 +60,28 @@ const Goals: React.FC = () => {
     const now = new Date();
     const end = new Date(goal.deadline);
     
-    // Calcul de la différence en mois
     let months = (end.getFullYear() - now.getFullYear()) * 12 + (end.getMonth() - now.getMonth());
-    
-    // Si l'échéance est ce mois-ci ou passée, on divise par 1 pour le mois en cours
     if (months <= 0) return remaining;
 
     return remaining / months;
   };
 
   const monthlyEffort = useMemo(() => calculateMonthlyRequired(formData), [formData]);
+
+  const handleTextAmountChange = (field: 'targetAmount' | 'currentAmount', rawValue: string) => {
+    let val = rawValue.replace('.', ',');
+    if (/^[0-9]*,?[0-9]*$/.test(val)) {
+      if (field === 'targetAmount') setDisplayTargetAmount(val);
+      else setDisplayCurrentAmount(val);
+
+      const numericVal = parseFloat(val.replace(',', '.'));
+      setFormData({ ...formData, [field]: isNaN(numericVal) ? 0 : numericVal });
+    }
+  };
+
+  const handleInputChange = (field: keyof SavingsGoal, value: string) => {
+    setFormData({ ...formData, [field]: value });
+  };
 
   return (
     <div className="space-y-6">
@@ -130,19 +149,19 @@ const Goals: React.FC = () => {
             <form onSubmit={handleSave} className="space-y-6">
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Titre du projet</label>
-                <input type="text" required className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl outline-none font-bold focus:border-blue-500 transition-all uppercase" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="ex: Voyage Japon" />
+                <input type="text" required className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl outline-none font-bold focus:border-blue-500 transition-all uppercase" value={formData.name} onChange={e => handleInputChange('name', e.target.value)} placeholder="ex: Voyage Japon" />
               </div>
               
-              <IconPicker value={formData.icon || '🎯'} onChange={(icon) => setFormData({ ...formData, icon })} />
+              <IconPicker value={formData.icon || '🎯'} onChange={(icon) => handleInputChange('icon', icon)} />
               
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Couleur</label>
-                  <input type="color" className="w-full h-14 p-1 bg-slate-50 border-2 border-transparent rounded-2xl outline-none" value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} />
+                  <input type="color" className="w-full h-14 p-1 bg-slate-50 border-2 border-transparent rounded-2xl outline-none" value={formData.color} onChange={e => handleInputChange('color', e.target.value)} />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Compte de rattachement</label>
-                  <select className="w-full px-5 h-14 bg-slate-50 border-2 border-transparent rounded-2xl outline-none font-bold focus:border-blue-500 transition-all uppercase" value={formData.accountId} onChange={e => setFormData({...formData, accountId: e.target.value})}>
+                  <select className="w-full px-5 h-14 bg-slate-50 border-2 border-transparent rounded-2xl outline-none font-bold focus:border-blue-500 transition-all uppercase" value={formData.accountId} onChange={e => handleInputChange('accountId', e.target.value)}>
                     {accounts.map((a:any) => <option key={a.id} value={a.id}>{a.name}</option>)}
                   </select>
                 </div>
@@ -151,17 +170,33 @@ const Goals: React.FC = () => {
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Montant Cible (€)</label>
-                  <input type="number" required className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl font-black focus:border-blue-500 outline-none" value={formData.targetAmount} onChange={e => setFormData({...formData, targetAmount: Number(e.target.value)})} placeholder="0.00" />
+                  <input 
+                    type="text" 
+                    inputMode="decimal"
+                    required 
+                    className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl font-black focus:border-blue-500 outline-none" 
+                    value={displayTargetAmount} 
+                    onChange={e => handleTextAmountChange('targetAmount', e.target.value)} 
+                    placeholder="0,00" 
+                  />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Date d'échéance</label>
-                  <input type="date" className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl outline-none font-bold focus:border-blue-500" value={formData.deadline} onChange={e => setFormData({...formData, deadline: e.target.value})} />
+                  <input type="date" className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl outline-none font-bold focus:border-blue-500" value={formData.deadline} onChange={e => handleInputChange('deadline', e.target.value)} />
                 </div>
               </div>
 
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Épargne déjà constituée (€)</label>
-                <input type="number" required className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl font-bold focus:border-blue-500 outline-none" value={formData.currentAmount} onChange={e => setFormData({...formData, currentAmount: Number(e.target.value)})} placeholder="0.00" />
+                <input 
+                  type="text" 
+                  inputMode="decimal"
+                  required 
+                  className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl font-bold focus:border-blue-500 outline-none" 
+                  value={displayCurrentAmount} 
+                  onChange={e => handleTextAmountChange('currentAmount', e.target.value)} 
+                  placeholder="0,00" 
+                />
               </div>
 
               {monthlyEffort > 0 && (

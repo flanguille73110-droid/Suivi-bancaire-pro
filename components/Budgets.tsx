@@ -10,12 +10,42 @@ const Budgets: React.FC = () => {
 
   const [showForm, setShowForm] = useState<'add' | 'edit' | null>(null);
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
+  const [displayAmount, setDisplayAmount] = useState("");
+  
   const [formData, setFormData] = useState({
     categoryId: '',
     amount: 0,
     period: 'MONTHLY' as 'MONTHLY' | 'YEARLY',
     thresholds: '50,80,100'
   });
+
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value.replace('.', ',');
+    if (/^[0-9]*,?[0-9]*$/.test(val)) {
+      setDisplayAmount(val);
+      const numericVal = parseFloat(val.replace(',', '.'));
+      setFormData({ ...formData, amount: isNaN(numericVal) ? 0 : numericVal });
+    }
+  };
+
+  const handleOpenAdd = () => {
+    setFormData({ categoryId: '', amount: 0, period: 'MONTHLY', thresholds: '50,80,100' });
+    setDisplayAmount("");
+    setShowForm('add');
+    setEditingBudget(null);
+  };
+
+  const handleOpenEdit = (budget: Budget) => {
+    setEditingBudget(budget);
+    setFormData({ 
+      categoryId: budget.categoryId, 
+      amount: budget.amount, 
+      period: budget.period, 
+      thresholds: budget.alertThresholds.map(t => t*100).join(',') 
+    });
+    setDisplayAmount(budget.amount.toString().replace('.', ','));
+    setShowForm('edit');
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,7 +61,7 @@ const Budgets: React.FC = () => {
     <div className="space-y-8">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-slate-800 tracking-tight uppercase">Limites de Dépenses</h2>
-        <button className="px-6 py-3 bg-gradient-to-r from-blue-500 to-pink-500 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl hover:scale-[1.02] active:scale-95 transition-all flex items-center" onClick={() => setShowForm('add')}>
+        <button className="px-6 py-3 bg-gradient-to-r from-blue-500 to-pink-500 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl hover:scale-[1.02] active:scale-95 transition-all flex items-center" onClick={handleOpenAdd}>
           <Plus size={18} className="mr-2" /> Définir un Budget
         </button>
       </div>
@@ -51,7 +81,7 @@ const Budgets: React.FC = () => {
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{budget.period === 'MONTHLY' ? 'Mensuel' : 'Annuel'}</p>
                   </div>
                 </div>
-                <button onClick={() => { setEditingBudget(budget); setFormData({ categoryId: budget.categoryId, amount: budget.amount, period: budget.period, thresholds: budget.alertThresholds.map(t => t*100).join(',') }); setShowForm('edit'); }} className="p-2 text-slate-300 hover:text-blue-500 transition-colors"><Edit2 size={18} /></button>
+                <button onClick={() => handleOpenEdit(budget)} className="p-2 text-slate-300 hover:text-blue-500 transition-colors"><Edit2 size={18} /></button>
               </div>
               <div className="h-5 w-full bg-slate-50 rounded-full overflow-hidden p-1 border border-slate-100">
                 <div className={`h-full rounded-full transition-all duration-1000 ${percent >= 100 ? 'bg-rose-500' : percent >= 80 ? 'bg-amber-500' : 'bg-gradient-to-r from-blue-400 to-blue-600'}`} style={{ width: `${percent}%` }} />
@@ -85,7 +115,15 @@ const Budgets: React.FC = () => {
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Limite (€)</label>
-                <input type="number" required className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl font-black outline-none focus:border-blue-500" value={formData.amount} onChange={e => setFormData({...formData, amount: Number(e.target.value)})} />
+                <input 
+                  type="text" 
+                  inputMode="decimal"
+                  required 
+                  className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl font-black outline-none focus:border-blue-500" 
+                  value={displayAmount} 
+                  onChange={handleAmountChange} 
+                  placeholder="0,00"
+                />
               </div>
               
               <div className="flex space-x-4 mt-8">
