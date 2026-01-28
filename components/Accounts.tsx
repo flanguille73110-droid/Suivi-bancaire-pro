@@ -309,7 +309,7 @@ const Accounts: React.FC = () => {
                 <div className="bg-gradient-to-br from-blue-600 to-pink-500 p-8 rounded-[2.5rem] shadow-2xl grid grid-cols-3 gap-6 relative overflow-hidden border border-white/10">
                   <StatItem label="Solde Réel" value={calculateRealBalance(selectedAccount!)} isInGradient />
                   <StatItem label="Reste à passer (Rec)" value={calculateRemainingRecurring(selectedAccount!.id)} highlight="rose" isInGradient />
-                  <StatItem label="Budget restant" value={calculateRealBalance(selectedAccount!) - calculateRemainingRecurring(selectedAccount!.id)} highlight="emerald" isInGradient />
+                  <StatItem label="Reste à vivre" value={calculateRealBalance(selectedAccount!) - calculateRemainingRecurring(selectedAccount!.id)} highlight="emerald" isInGradient />
                 </div>
              </div>
            ) : (
