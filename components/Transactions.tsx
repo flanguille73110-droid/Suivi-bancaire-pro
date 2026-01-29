@@ -164,10 +164,10 @@ const Transactions: React.FC = () => {
         </button>
       </div>
 
-      <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl overflow-hidden">
+      <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl overflow-hidden max-h-[750px] overflow-y-auto custom-table-scroll">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm min-w-[1000px]">
-            <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] font-black tracking-[0.15em]">
+          <table className="w-full text-left text-sm min-w-[1000px] relative border-collapse">
+            <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] font-black tracking-[0.15em] sticky top-0 z-10 shadow-sm">
               <tr>
                 <SortHeader label="Date" active={sortConfig?.key === 'date'} onClick={() => handleSort('date')} />
                 <th className="px-6 py-5 border-b">Catégorie</th>

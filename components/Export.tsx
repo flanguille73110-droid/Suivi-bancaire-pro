@@ -19,17 +19,56 @@ const Export: React.FC = () => {
       
       let finalData = [];
 
-      if (type === 'CATEGORIES') {
-        // Formatage spécifique pour correspondre au format d'importation
+      if (type === 'TRANSACTIONS') {
+        finalData = data.map(t => {
+          const cat = context.categories.find(c => String(c.id) === String(t.categoryId));
+          const sourceAcc = context.accounts.find(a => String(a.id) === String(t.sourceAccountId));
+          const destAcc = t.destinationAccountId ? context.accounts.find(a => String(a.id) === String(t.destinationAccountId)) : null;
+          
+          return {
+            "Date": t.date,
+            "Description": t.description,
+            "Revenu": t.revenue || 0,
+            "Depense": t.expense || 0,
+            "Categorie": cat ? cat.name : (t.categoryId === 'transfer' ? 'Transfert Interne' : 'Non catégorisé'),
+            "Sous-Categorie": t.subCategory || '',
+            "Compte": sourceAcc?.name || 'Inconnu',
+            "Destination": destAcc?.name || '',
+            "Moyen de paiement": t.paymentMethod,
+            "Rapprochement": t.reconciliation === 'NONE' ? '-' : (t.reconciliation === 'GREEN_CHECK' ? '✅' : t.reconciliation)
+          };
+        });
+      } else if (type === 'CATEGORIES') {
         finalData = data.map(cat => ({
           "Nom": cat.name,
-          "Type": cat.type,
+          "Type": cat.type === 'REVENUE' ? 'Revenu' : 'Dépense',
           "Icone": cat.icon,
           "Couleur (HEX)": cat.color,
           "Sous-Categories": cat.subCategories?.join(', ') || ''
         }));
+      } else if (type === 'BUDGETS') {
+        finalData = data.map(b => {
+          const cat = context.categories.find(c => String(c.id) === String(b.categoryId));
+          return {
+            "Categorie": cat?.name || 'Inconnue',
+            "Plafond": b.amount,
+            "Periode": b.period === 'MONTHLY' ? 'Mensuel' : 'Annuel',
+            "Seuils d'alerte": b.alertThresholds.map((s: number) => `${s * 100}%`).join(', ')
+          };
+        });
+      } else if (type === 'GOALS') {
+        finalData = data.map(g => {
+          const acc = context.accounts.find(a => String(a.id) === String(g.accountId));
+          return {
+            "Nom du projet": g.name,
+            "Objectif": g.targetAmount,
+            "Actuel": g.currentAmount,
+            "Compte rattaché": acc?.name || 'Inconnu',
+            "Echéance": g.deadline || '-',
+            "Statut": g.isReached ? 'Atteint' : (g.isPaused ? 'En pause' : 'En cours')
+          };
+        });
       } else {
-        // Nettoyage générique des données pour l'export (on retire les ID techniques)
         finalData = data.map(({ id, ...rest }) => rest);
       }
 
@@ -40,9 +79,7 @@ const Export: React.FC = () => {
       const dateStr = new Date().toISOString().split('T')[0];
       const fullFileName = `${filename}_${dateStr}.xlsx`;
 
-      // Déclenchement impératif du téléchargement
       XLSX.writeFile(workbook, fullFileName);
-      
       context.notify("✅ Téléchargement terminé !");
     } catch (error) {
       console.error("Erreur Export:", error);
@@ -64,8 +101,8 @@ const Export: React.FC = () => {
         <ExportCard 
           title="Journal des Transactions" 
           icon={<Table className="text-blue-500" />}
-          description="L'intégralité de vos flux financiers de tous vos comptes bancaires."
-          onExport={() => exportExcel(context.transactions, 'Journal_Transactions')}
+          description="L'intégralité de vos flux financiers avec noms de catégories et comptes lisibles."
+          onExport={() => exportExcel(context.transactions, 'Journal_Transactions', 'TRANSACTIONS')}
         />
         <ExportCard 
           title="Liste des Catégories" 
@@ -76,20 +113,20 @@ const Export: React.FC = () => {
         <ExportCard 
           title="Budgets & Plafonds" 
           icon={<FileSpreadsheet className="text-amber-500" />}
-          description="Vos limites de dépenses par catégorie et l'état actuel des consommations."
+          description="Vos limites de dépenses par catégorie avec calcul des seuils d'alerte."
           onExport={() => exportExcel(context.budgets, 'Configuration_Budgets', 'BUDGETS')}
         />
         <ExportCard 
           title="Objectifs d'Épargne" 
           icon={<History className="text-emerald-500" />}
-          description="Le détail de vos projets projet par projet avec les montants cibles."
+          description="Le détail de vos projets avec le suivi des montants épargnés par compte."
           onExport={() => exportExcel(context.goals, 'Suivi_Objectifs', 'GOALS')}
         />
         <ExportCard 
           title="Rapprochements" 
           icon={<CheckCircle2 className="text-slate-700" />}
           description="Transactions pointées (C, G, D) uniquement pour vérification bancaire."
-          onExport={() => exportExcel(context.transactions.filter(t => t.reconciliation !== 'NONE'), 'Transactions_Pointees')}
+          onExport={() => exportExcel(context.transactions.filter(t => t.reconciliation !== 'NONE'), 'Transactions_Pointees', 'TRANSACTIONS')}
         />
       </div>
 
@@ -101,11 +138,11 @@ const Export: React.FC = () => {
            </div>
            <div>
               <p className="font-black text-xl uppercase tracking-tight">Sauvegarde Totale</p>
-              <p className="text-xs text-slate-400 font-medium">Exportez tout l'historique pour une réimportation ultérieure.</p>
+              <p className="text-xs text-slate-400 font-medium">Exportez tout l'historique complet avec données converties.</p>
            </div>
         </div>
         <button 
-          onClick={() => exportExcel(context.transactions, 'Backup_Suivi_Bancaire')}
+          onClick={() => exportExcel(context.transactions, 'Backup_Suivi_Bancaire', 'TRANSACTIONS')}
           className="w-full md:w-auto px-10 py-5 bg-blue-500 hover:bg-blue-600 text-white font-black rounded-[1.5rem] transition-all uppercase text-xs tracking-widest shadow-xl shadow-blue-500/20 active:scale-95"
         >
           Exporter maintenant

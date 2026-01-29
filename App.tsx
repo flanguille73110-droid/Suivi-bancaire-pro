@@ -52,6 +52,14 @@ export const AppContext = createContext<AppContextType | null>(null);
 const Layout: React.FC<{ children: React.ReactNode, activeTab: string, setTab: (t: string) => void, onOpenSettings: () => void }> = ({ children, activeTab, setTab, onOpenSettings }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
+  // Date du jour formatée
+  const today = new Intl.DateTimeFormat('fr-FR', { 
+    weekday: 'long', 
+    day: 'numeric', 
+    month: 'long', 
+    year: 'numeric' 
+  }).format(new Date());
+
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'comptes', label: 'Comptes', icon: Wallet },
@@ -91,7 +99,19 @@ const Layout: React.FC<{ children: React.ReactNode, activeTab: string, setTab: (
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="flex items-center justify-between px-6 py-4 bg-white border-b border-slate-200 shrink-0">
           <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 text-slate-600 md:hidden"><Menu size={24} /></button>
-          <div className="flex items-center space-x-4"><h1 className="text-xl font-black uppercase tracking-tight text-slate-800">{activeTab.replace('-', ' ')}</h1></div>
+          
+          <div className="flex flex-col md:flex-row md:items-center md:space-x-4">
+            <h1 className="text-xl font-black uppercase tracking-tight text-slate-800">{activeTab.replace('-', ' ')}</h1>
+          </div>
+
+          <div className="hidden lg:block">
+            <div className="px-8 py-3 bg-white border border-slate-100 rounded-3xl shadow-sm">
+               <p className="text-base font-black uppercase tracking-[0.1em] bg-gradient-to-r from-blue-600 to-pink-600 bg-clip-text text-transparent">
+                 {today}
+               </p>
+            </div>
+          </div>
+
           <div className="flex items-center space-x-3">
             <button onClick={onOpenSettings} className="p-2 text-slate-400 hover:text-blue-500 rounded-full hover:bg-blue-50 transition-all active:rotate-90"><Settings size={20} /></button>
             <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-400 to-pink-400 shadow-inner" />
@@ -287,7 +307,7 @@ const App: React.FC = () => {
 
       {showDeleteModal && (
         <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-sm p-8 shadow-2xl border border-slate-100 flex flex-col items-center text-center space-y-6 animate-in zoom-in duration-200">
+          <div className="bg-white rounded-[2.5rem] w-full max-sm p-8 shadow-2xl border border-slate-100 flex flex-col items-center text-center space-y-6 animate-in zoom-in duration-200">
             <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center shadow-inner">
               <AlertTriangle size={40} />
             </div>

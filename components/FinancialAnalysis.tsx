@@ -247,31 +247,42 @@ const FinancialAnalysis: React.FC = () => {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center justify-between">
-          <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Revenus Filtrés</p>
-            <h3 className="text-2xl font-black text-emerald-500 mt-1">+{stats.totalRevenue.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€</h3>
+        <div className="bg-gradient-to-br from-pink-500 via-purple-500 to-blue-600 p-8 rounded-[2.5rem] shadow-xl text-white flex items-center justify-between group overflow-hidden relative">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-125 transition-transform duration-500">
+            <TrendingUp size={80} />
           </div>
-          <div className="w-12 h-12 bg-emerald-50 text-emerald-500 rounded-2xl flex items-center justify-center">
-            <TrendingUp size={24} />
+          <div className="relative z-10">
+            <p className="text-[10px] font-black text-white/70 uppercase tracking-[0.2em]">Revenus Filtrés</p>
+            <h3 className="text-3xl font-black mt-1">+{stats.totalRevenue.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€</h3>
           </div>
-        </div>
-        <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center justify-between">
-          <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Dépenses Filtrées</p>
-            <h3 className="text-2xl font-black text-rose-500 mt-1">-{stats.totalExpense.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€</h3>
-          </div>
-          <div className="w-12 h-12 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center">
-            <TrendingDown size={24} />
+          <div className="w-14 h-14 bg-white/20 backdrop-blur-md text-white rounded-2xl flex items-center justify-center shadow-inner relative z-10">
+            <TrendingUp size={28} />
           </div>
         </div>
-        <div className="bg-gradient-to-br from-blue-600 to-indigo-600 p-6 rounded-[2rem] shadow-xl text-white flex items-center justify-between">
-          <div>
-            <p className="text-[10px] font-black text-blue-100/70 uppercase tracking-[0.2em]">Résultat du filtre</p>
-            <h3 className="text-2xl font-black mt-1">{stats.balance.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€</h3>
+
+        <div className="bg-gradient-to-br from-pink-500 via-purple-500 to-blue-600 p-8 rounded-[2.5rem] shadow-xl text-white flex items-center justify-between group overflow-hidden relative">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-125 transition-transform duration-500">
+            <TrendingDown size={80} />
           </div>
-          <div className="w-12 h-12 bg-white/20 backdrop-blur-md text-white rounded-2xl flex items-center justify-center shadow-inner">
-            <BarChart3 size={24} />
+          <div className="relative z-10">
+            <p className="text-[10px] font-black text-white/70 uppercase tracking-[0.2em]">Dépenses Filtrées</p>
+            <h3 className="text-3xl font-black mt-1">-{stats.totalExpense.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€</h3>
+          </div>
+          <div className="w-14 h-14 bg-white/20 backdrop-blur-md text-white rounded-2xl flex items-center justify-center shadow-inner relative z-10">
+            <TrendingDown size={28} />
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-pink-500 via-purple-500 to-blue-600 p-8 rounded-[2.5rem] shadow-xl text-white flex items-center justify-between group overflow-hidden relative border-4 border-white/20">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-125 transition-transform duration-500">
+            <BarChart3 size={80} />
+          </div>
+          <div className="relative z-10">
+            <p className="text-[10px] font-black text-white/70 uppercase tracking-[0.2em]">Résultat du filtre</p>
+            <h3 className="text-3xl font-black mt-1">{stats.balance.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€</h3>
+          </div>
+          <div className="w-14 h-14 bg-white/20 backdrop-blur-md text-white rounded-2xl flex items-center justify-center shadow-inner relative z-10">
+            <BarChart3 size={28} />
           </div>
         </div>
       </div>

@@ -1,19 +1,51 @@
 
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useMemo } from 'react';
 import { AppContext } from '../App';
-import { AppContextType, CreditCard } from '../types';
-import { CreditCard as CardIcon, Plus, Trash2, Edit2, X } from 'lucide-react';
+import { AppContextType, CreditCard, Transaction } from '../types';
+import { Plus, Trash2, Edit2, X, ArrowLeft, Calendar, Tag, CreditCard as CardIcon, CreditCard as CardIconLucide, TrendingDown, Clock } from 'lucide-react';
 import IconPicker from './IconPicker';
 
 const Cards: React.FC = () => {
   const context = useContext(AppContext) as AppContextType;
-  const { cards, accounts, addCard, updateCard, confirmDelete } = context;
+  const { cards, accounts, transactions, categories, addCard, updateCard, confirmDelete } = context;
   
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState<'add' | 'edit' | null>(null);
   const [editingCard, setEditingCard] = useState<CreditCard | null>(null);
   const [formData, setFormData] = useState<Partial<CreditCard>>({
     name: '', icon: '💳', color: '#1e293b', accountId: accounts[0]?.id || ''
   });
+
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+
+  const getCardMonthlyTotal = (cardName: string) => {
+    return transactions
+      .filter(t => {
+        const tDate = new Date(t.date);
+        return t.paymentMethod === `Carte: ${cardName}` && 
+               tDate.getMonth() === currentMonth && 
+               tDate.getFullYear() === currentYear;
+      })
+      .reduce((sum, t) => sum + t.expense, 0);
+  };
+
+  const selectedCard = useMemo(() => 
+    cards.find(c => String(c.id) === String(selectedCardId)),
+    [cards, selectedCardId]
+  );
+
+  const cardTransactions = useMemo(() => {
+    if (!selectedCard) return [];
+    return transactions.filter(t => t.paymentMethod === `Carte: ${selectedCard.name}`)
+      .sort((a, b) => b.date.localeCompare(a.date));
+  }, [transactions, selectedCard]);
+
+  const currentMonthTotal = useMemo(() => {
+    if (!selectedCard) return 0;
+    return getCardMonthlyTotal(selectedCard.name);
+  }, [selectedCard, transactions]);
 
   const handleOpenAdd = () => {
     setFormData({ name: '', icon: '💳', color: '#1e293b', accountId: accounts[0]?.id || '' });
@@ -21,7 +53,8 @@ const Cards: React.FC = () => {
     setEditingCard(null);
   };
 
-  const handleOpenEdit = (card: CreditCard) => {
+  const handleOpenEdit = (e: React.MouseEvent, card: CreditCard) => {
+    e.stopPropagation();
     setEditingCard(card);
     setFormData(card);
     setShowForm('edit');
@@ -39,6 +72,119 @@ const Cards: React.FC = () => {
     setShowForm(null);
   };
 
+  const formatDateDisplay = (dateStr: string) => {
+    if (!dateStr) return '-';
+    const [year, month, day] = dateStr.split('-');
+    return `${day}-${month}-${year}`;
+  };
+
+  if (selectedCardId && selectedCard) {
+    return (
+      <div className="space-y-8 animate-in slide-in-from-right duration-500 pb-20">
+        <div className="flex items-center justify-between">
+          <button 
+            onClick={() => setSelectedCardId(null)} 
+            className="text-[10px] font-black text-slate-400 hover:text-blue-500 flex items-center bg-white px-6 py-4 rounded-2xl shadow-sm border border-slate-100 uppercase tracking-widest transition-all"
+          >
+            <ArrowLeft size={16} className="mr-2" /> Retour aux cartes
+          </button>
+          
+          <div className="flex items-center space-x-4 bg-white px-8 py-3 rounded-[2rem] border border-slate-100 shadow-sm">
+             <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl text-white shadow-lg" style={{ backgroundColor: selectedCard.color }}>
+                {selectedCard.icon}
+             </div>
+             <div>
+                <h2 className="text-xl font-black text-slate-900 tracking-tight uppercase leading-none">{selectedCard.name}</h2>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                   Journal des dépenses carte
+                </p>
+             </div>
+          </div>
+        </div>
+
+        {/* Indicateur de montant mensuel au-dessus du tableau */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+           <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-8 rounded-[3rem] shadow-xl border border-white/10 text-white relative overflow-hidden group">
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-125 transition-transform duration-500">
+                <Clock size={80} />
+              </div>
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/50 mb-4">Total ce mois-ci</p>
+              <div className="flex items-end space-x-2">
+                <h3 className="text-4xl font-black tracking-tighter tabular-nums">
+                   {currentMonthTotal.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}
+                   <span className="text-xl ml-1 text-white/60">€</span>
+                </h3>
+              </div>
+              <div className="mt-4 flex items-center space-x-2 text-rose-400 font-black uppercase text-[9px] tracking-widest">
+                <TrendingDown size={12} />
+                <span>En-cours</span>
+              </div>
+           </div>
+           
+           <div className="md:col-span-2 bg-white p-8 rounded-[3rem] border border-slate-100 shadow-xl flex items-center space-x-6">
+              <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-500 flex items-center justify-center">
+                 <CardIconLucide size={32} />
+              </div>
+              <div>
+                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Rappel Mode de paiement</p>
+                 <p className="text-sm font-bold text-slate-700 leading-relaxed uppercase">
+                    Utilisez le mode <span className="text-blue-600">"Carte: {selectedCard.name}"</span> lors de la saisie de vos transactions pour alimenter ce tableau.
+                 </p>
+              </div>
+           </div>
+        </div>
+
+        <div className="bg-white rounded-[3rem] border border-slate-100 shadow-2xl overflow-hidden max-h-[700px] overflow-y-auto custom-table-scroll">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-[11px] relative border-collapse">
+              <thead className="bg-slate-50 text-slate-500 uppercase font-black tracking-widest border-b border-slate-100 sticky top-0 z-20 shadow-sm">
+                <tr>
+                  <th className="px-8 py-5 border-b">Date</th>
+                  <th className="px-6 py-5 border-b">Catégorie</th>
+                  <th className="px-6 py-5 border-b">Sous-catégorie</th>
+                  <th className="px-6 py-5 border-b">Descriptif</th>
+                  <th className="px-8 py-5 border-b text-right">Montant</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {cardTransactions.length > 0 ? cardTransactions.map((t) => {
+                  const cat = categories.find(c => String(c.id) === String(t.categoryId));
+                  return (
+                    <tr key={t.id} className="hover:bg-slate-50/50 transition-colors group">
+                      <td className="px-8 py-5 whitespace-nowrap text-slate-400 font-bold">
+                        <div className="flex items-center space-x-2">
+                           <Calendar size={12} className="text-slate-300" />
+                           <span>{formatDateDisplay(t.date)}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-5">
+                        <div className="flex items-center space-x-2">
+                           <span className="text-lg">{cat?.icon || '📦'}</span>
+                           <span className="font-black text-slate-700 uppercase tracking-tighter">{cat?.name || 'Virement'}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-5 text-slate-400 uppercase font-bold">{t.subCategory || '-'}</td>
+                      <td className="px-6 py-5 text-slate-600 font-medium truncate max-w-[250px] italic">{t.description}</td>
+                      <td className={`px-8 py-5 text-right font-black text-sm ${t.expense > 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
+                        {t.expense > 0 ? `-${t.expense.toFixed(2)}€` : `+${t.revenue.toFixed(2)}€`}
+                      </td>
+                    </tr>
+                  );
+                }) : (
+                  <tr>
+                    <td colSpan={5} className="px-8 py-20 text-center text-slate-300 font-bold italic">
+                      Aucune transaction trouvée pour cette carte.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -47,28 +193,50 @@ const Cards: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {cards.map((card: CreditCard) => (
-          <div key={card.id} className="relative aspect-[1.6/1] rounded-[2.5rem] p-8 text-white shadow-2xl overflow-hidden group transition-all hover:-translate-y-2" style={{ backgroundColor: card.color }}>
-            <div className="h-full flex flex-col justify-between relative z-10">
-              <div className="flex justify-between items-start">
-                <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center text-3xl backdrop-blur-md shadow-inner">{card.icon}</div>
-                <span className="text-[10px] font-black uppercase tracking-[0.25em] bg-white/20 px-4 py-1.5 rounded-xl backdrop-blur-md border border-white/20">Visa Premium</span>
-              </div>
-              <div>
-                <p className="text-xl font-black tracking-tight mb-1 uppercase">{card.name}</p>
-                <div className="flex justify-between items-end">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-white/60">Compte : {accounts.find((a:any) => String(a.id) === String(card.accountId))?.name}</p>
-                  <button onClick={() => handleOpenEdit(card)} className="p-3 bg-white/20 rounded-2xl hover:bg-white/40 transition-all active:scale-90 shadow-lg border border-white/10 opacity-0 group-hover:opacity-100"><Edit2 size={16} /></button>
+        {cards.map((card: CreditCard) => {
+          const monthlyTotal = getCardMonthlyTotal(card.name);
+          return (
+            <div 
+              key={card.id} 
+              onClick={() => setSelectedCardId(card.id)}
+              className="relative cursor-pointer aspect-[1.6/1] rounded-[2.5rem] p-8 text-white shadow-2xl overflow-hidden group transition-all hover:-translate-y-2" 
+              style={{ backgroundColor: card.color }}
+            >
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+              <div className="h-full flex flex-col justify-between relative z-10">
+                <div className="flex justify-between items-start">
+                  <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center text-3xl backdrop-blur-md shadow-inner">{card.icon}</div>
+                  <div className="text-right">
+                    <span className="block text-[10px] font-black uppercase tracking-[0.25em] bg-white/20 px-4 py-1.5 rounded-xl backdrop-blur-md border border-white/20 mb-2">Visa Premium</span>
+                    <div className="bg-black/20 backdrop-blur-md rounded-xl px-4 py-2 border border-white/10 animate-in slide-in-from-right duration-300">
+                      <p className="text-[8px] font-black uppercase tracking-widest text-white/60 mb-1 text-left">En-cours</p>
+                      <p className="text-sm font-black tracking-tighter tabular-nums">{monthlyTotal.toLocaleString('fr-FR')}€</p>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xl font-black tracking-tight mb-1 uppercase">{card.name}</p>
+                  <div className="flex justify-between items-end">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-white/60">Compte : {accounts.find((a:any) => String(a.id) === String(card.accountId))?.name}</p>
+                    <div className="flex space-x-2">
+                      <button 
+                        onClick={(e) => handleOpenEdit(e, card)} 
+                        className="p-3 bg-white/20 rounded-2xl hover:bg-white/40 transition-all active:scale-90 shadow-lg border border-white/10 opacity-0 group-hover:opacity-100"
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {showForm && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-md p-10 shadow-2xl animate-in zoom-in duration-200 flex flex-col border border-slate-100 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-md p-10 shadow-2xl animate-in zoom-in duration-200 border border-slate-100 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-8">
               <h3 className="text-2xl font-black text-slate-900 tracking-tight uppercase">{showForm === 'add' ? 'Nouvelle Carte' : 'Paramètres Carte'}</h3>
               <button onClick={() => setShowForm(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={24}/></button>
