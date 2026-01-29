@@ -375,20 +375,56 @@ const Accounts: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-y-10 gap-x-8 items-start relative z-10">
                       {/* COLONNE 1 : SOLDE */}
                       <div className="space-y-10">
-                        <StatItem label="Solde Banque" value={selectedAccount?.bankBalanceManual || 0} isManual onManualChange={(val) => updateAccount({...selectedAccount!, bankBalanceManual: val})} isInGradient />
-                        <StatItem label="Solde Appli" value={pointCValue + totalCardsOutstandingApp} highlight="blue" isInGradient />
+                        <StatItem 
+                          label="Solde Banque" 
+                          value={selectedAccount?.bankBalanceManual || 0} 
+                          isManual 
+                          onManualChange={(val) => {
+                            if (selectedAccount) updateAccount({...selectedAccount, bankBalanceManual: val});
+                          }} 
+                          isInGradient 
+                        />
+                        <StatItem 
+                          label="Solde Appli" 
+                          value={pointCValue + totalCardsOutstandingApp} 
+                          highlight="blue" 
+                          isInGradient 
+                        />
                       </div>
                       
                       {/* COLONNE 2 : EN-COURS CARTE */}
                       <div className="space-y-10">
-                        <StatItem label="En-cours carte banque" value={selectedAccount?.cardOutstandingManual || 0} isManual onManualChange={(val) => updateAccount({...selectedAccount!, cardOutstandingManual: val})} isInGradient />
-                        <StatItem label="En-cours carte appli" value={totalCardsOutstandingApp} highlight="rose" isInGradient />
+                        <StatItem 
+                          label="En-cours carte banque" 
+                          value={selectedAccount?.cardOutstandingManual || 0} 
+                          isManual 
+                          onManualChange={(val) => {
+                            if (selectedAccount) updateAccount({...selectedAccount, cardOutstandingManual: val});
+                          }} 
+                          isInGradient 
+                        />
+                        <StatItem 
+                          label="En-cours carte appli" 
+                          value={totalCardsOutstandingApp} 
+                          highlight="rose" 
+                          isInGradient 
+                        />
                       </div>
                       
                       {/* COLONNE 3 : COMPARAISON */}
                       <div className="space-y-10">
-                        <StatItem label="Différence banque" value={(selectedAccount?.bankBalanceManual || 0) - (selectedAccount?.cardOutstandingManual || 0)} highlight={ ((selectedAccount?.bankBalanceManual || 0) - (selectedAccount?.cardOutstandingManual || 0)) < 0 ? 'rose' : 'emerald' } isInGradient />
-                        <StatItem label="Pointé (C)" value={pointCValue} highlight="blue" isInGradient />
+                        <StatItem 
+                          label="Différence banque" 
+                          value={(selectedAccount?.bankBalanceManual || 0) - (selectedAccount?.cardOutstandingManual || 0)} 
+                          highlight={ ((selectedAccount?.bankBalanceManual || 0) - (selectedAccount?.cardOutstandingManual || 0)) < 0 ? 'rose' : 'emerald' } 
+                          isInGradient 
+                        />
+                        <StatItem 
+                          label="Pointé (C)" 
+                          value={pointCValue} 
+                          highlight="blue" 
+                          isInGradient 
+                        />
                       </div>
                     </div>
                   </div>
@@ -441,9 +477,9 @@ const Accounts: React.FC = () => {
                       <tr>
                         <SortHeader label="Date" active={sortConfig.key === 'date'} onClick={() => requestSort('date')} className="py-3 px-6" />
                         <SortHeader label="Catégories" active={sortConfig.key === 'categoryId'} onClick={() => requestSort('categoryId')} className="py-3 px-6" />
-                        <SortHeader label="Sous catégories" active={sortConfig.key === 'subCategory'} onClick={() => requestSort('subCategory'} className="py-3 px-6" />
-                        <SortHeader label="Descriptifs" active={sortConfig.key === 'description'} onClick={() => requestSort('description'} className="py-3 px-6" />
-                        <SortHeader label="Moyen de paiement" active={sortConfig.key === 'paymentMethod'} onClick={() => requestSort('paymentMethod'} className="min-w-[180px] px-8 py-3" />
+                        <SortHeader label="Sous catégories" active={sortConfig.key === 'subCategory'} onClick={() => requestSort('subCategory')} className="py-3 px-6" />
+                        <SortHeader label="Descriptifs" active={sortConfig.key === 'description'} onClick={() => requestSort('description')} className="py-3 px-6" />
+                        <SortHeader label="Moyen de paiement" active={sortConfig.key === 'paymentMethod'} onClick={() => requestSort('paymentMethod')} className="min-w-[180px] px-8 py-3" />
                         <SortHeader label="Revenus" className="text-right py-3" active={sortConfig.key === 'revenue'} onClick={() => requestSort('revenue')} />
                         <SortHeader label="Dépenses" className="text-right py-3" active={sortConfig.key === 'expense'} onClick={() => requestSort('expense')} />
                         <SortHeader label="Solde restant" className="text-right py-3" active={sortConfig.key === 'runningBalance'} onClick={() => requestSort('runningBalance')} />
@@ -713,12 +749,12 @@ const Accounts: React.FC = () => {
 };
 
 const StatItem: React.FC<{ label: string, value: number, isManual?: boolean, highlight?: string, onManualChange?: (v: number) => void, isInGradient?: boolean, large?: boolean }> = ({ label, value, isManual, highlight, onManualChange, isInGradient, large }) => {
-  const [displayText, setDisplayText] = useState(value === 0 ? "" : value.toString().replace('.', ','));
+  const [displayText, setDisplayText] = useState(value.toString().replace('.', ','));
 
   // S'assure que l'affichage est mis à jour si la valeur change (pour les calculs automatiques)
   useEffect(() => {
     if (!isManual) {
-      setDisplayText(value.toString().replace('.', ','));
+      setDisplayText(value.toLocaleString('fr-FR', { minimumFractionDigits: 2 }));
     }
   }, [value, isManual]);
 
@@ -759,7 +795,7 @@ const StatItem: React.FC<{ label: string, value: number, isManual?: boolean, hig
         </div>
       ) : (
         <p className={`${large ? 'text-4xl' : 'text-xl'} font-black tracking-tighter truncate ${highlights[effectiveHighlight]}`}>
-          {value.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€
+          {isManual ? displayText : value.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€
         </p>
       )}
     </div>
