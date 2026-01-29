@@ -2,7 +2,7 @@
 import React, { useContext, useState, useMemo } from 'react';
 import { AppContext } from '../App';
 import { AppContextType, CreditCard, Transaction } from '../types';
-import { Plus, Trash2, Edit2, X, ArrowLeft, Calendar, Tag, CreditCard as CardIcon, CreditCard as CardIconLucide, TrendingDown, Clock } from 'lucide-react';
+import { Plus, Trash2, Edit2, X, ArrowLeft, Calendar, Tag, CreditCard as CardIcon, CreditCard as CardIconLucide, TrendingDown, Clock, ArrowUpDown } from 'lucide-react';
 import IconPicker from './IconPicker';
 
 const Cards: React.FC = () => {
@@ -12,6 +12,7 @@ const Cards: React.FC = () => {
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState<'add' | 'edit' | null>(null);
   const [editingCard, setEditingCard] = useState<CreditCard | null>(null);
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'date', direction: 'desc' });
   const [formData, setFormData] = useState<Partial<CreditCard>>({
     name: '', icon: '💳', color: '#1e293b', accountId: accounts[0]?.id || ''
   });
@@ -36,11 +37,57 @@ const Cards: React.FC = () => {
     [cards, selectedCardId]
   );
 
-  const cardTransactions = useMemo(() => {
+  const requestSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const sortedCardTransactions = useMemo(() => {
     if (!selectedCard) return [];
-    return transactions.filter(t => t.paymentMethod === `Carte: ${selectedCard.name}`)
-      .sort((a, b) => b.date.localeCompare(a.date));
-  }, [transactions, selectedCard]);
+    let items = transactions.filter(t => t.paymentMethod === `Carte: ${selectedCard.name}`);
+    
+    items.sort((a, b) => {
+      let valA: any;
+      let valB: any;
+
+      if (sortConfig.key === 'categoryId') {
+        valA = categories.find(c => String(c.id) === String(a.categoryId))?.name || '';
+        valB = categories.find(c => String(c.id) === String(b.categoryId))?.name || '';
+      } else if (sortConfig.key === 'amount') {
+        valA = a.expense || -a.revenue;
+        valB = b.expense || -b.revenue;
+      } else if (sortConfig.key === 'description') {
+        valA = a.description.toLowerCase();
+        valB = b.description.toLowerCase();
+      } else if (sortConfig.key === 'subCategory') {
+        valA = (a.subCategory || '').toLowerCase();
+        valB = (b.subCategory || '').toLowerCase();
+      } else {
+        valA = (a as any)[sortConfig.key];
+        valB = (b as any)[sortConfig.key];
+      }
+
+      if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return items;
+  }, [transactions, selectedCard, sortConfig, categories]);
+
+  const totalCardsOutstanding = useMemo(() => {
+    return transactions.reduce((sum, t) => {
+      const tDate = new Date(t.date);
+      if (t.paymentMethod.startsWith('Carte:') && 
+          tDate.getMonth() === currentMonth && 
+          tDate.getFullYear() === currentYear) {
+        return sum + t.expense;
+      }
+      return sum;
+    }, 0);
+  }, [transactions]);
 
   const currentMonthTotal = useMemo(() => {
     if (!selectedCard) return 0;
@@ -102,20 +149,19 @@ const Cards: React.FC = () => {
           </div>
         </div>
 
-        {/* Indicateur de montant mensuel au-dessus du tableau */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-           <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-8 rounded-[3rem] shadow-xl border border-white/10 text-white relative overflow-hidden group">
+           <div className="bg-gradient-to-br from-blue-600 via-indigo-600 to-pink-500 p-8 rounded-[3rem] shadow-xl border border-white/10 text-white relative overflow-hidden group">
               <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-125 transition-transform duration-500">
                 <Clock size={80} />
               </div>
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/50 mb-4">Total ce mois-ci</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/70 mb-4">EN-COURS CARTE</p>
               <div className="flex items-end space-x-2">
                 <h3 className="text-4xl font-black tracking-tighter tabular-nums">
                    {currentMonthTotal.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}
                    <span className="text-xl ml-1 text-white/60">€</span>
                 </h3>
               </div>
-              <div className="mt-4 flex items-center space-x-2 text-rose-400 font-black uppercase text-[9px] tracking-widest">
+              <div className="mt-4 flex items-center space-x-2 text-white/80 font-black uppercase text-[9px] tracking-widest">
                 <TrendingDown size={12} />
                 <span>En-cours</span>
               </div>
@@ -139,15 +185,15 @@ const Cards: React.FC = () => {
             <table className="w-full text-left text-[11px] relative border-collapse">
               <thead className="bg-slate-50 text-slate-500 uppercase font-black tracking-widest border-b border-slate-100 sticky top-0 z-20 shadow-sm">
                 <tr>
-                  <th className="px-8 py-5 border-b">Date</th>
-                  <th className="px-6 py-5 border-b">Catégorie</th>
-                  <th className="px-6 py-5 border-b">Sous-catégorie</th>
-                  <th className="px-6 py-5 border-b">Descriptif</th>
-                  <th className="px-8 py-5 border-b text-right">Montant</th>
+                  <SortHeader label="Date" active={sortConfig.key === 'date'} onClick={() => requestSort('date')} className="px-8 py-4" />
+                  <SortHeader label="Catégorie" active={sortConfig.key === 'categoryId'} onClick={() => requestSort('categoryId')} className="px-6 py-4" />
+                  <SortHeader label="Sous-catégorie" active={sortConfig.key === 'subCategory'} onClick={() => requestSort('subCategory')} className="px-6 py-4" />
+                  <SortHeader label="Descriptif" active={sortConfig.key === 'description'} onClick={() => requestSort('description')} className="px-6 py-4" />
+                  <SortHeader label="Montant" active={sortConfig.key === 'amount'} onClick={() => requestSort('amount')} className="px-8 py-4 text-right" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {cardTransactions.length > 0 ? cardTransactions.map((t) => {
+                {sortedCardTransactions.length > 0 ? sortedCardTransactions.map((t) => {
                   const cat = categories.find(c => String(c.id) === String(t.categoryId));
                   return (
                     <tr key={t.id} className="hover:bg-slate-50/50 transition-colors group">
@@ -190,6 +236,25 @@ const Cards: React.FC = () => {
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-slate-800 tracking-tight uppercase">Mes Cartes Bancaires</h2>
         <button onClick={handleOpenAdd} className="px-6 py-3 bg-gradient-to-r from-blue-500 to-pink-500 text-white rounded-2xl shadow-lg font-black uppercase text-[10px] tracking-widest flex items-center hover:scale-[1.02] transition-transform active:scale-95"><Plus size={18} className="mr-2" /> Ajouter une Carte</button>
+      </div>
+
+      <div className="mb-8">
+        <div className="bg-gradient-to-br from-blue-600 via-indigo-600 to-pink-500 p-8 rounded-[3rem] shadow-xl border border-white/10 text-white relative overflow-hidden group max-w-md mx-auto">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-125 transition-transform duration-500">
+              <Clock size={80} />
+            </div>
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/70 mb-4">TOTAL EN COURS DES CARTES</p>
+            <div className="flex items-end space-x-2">
+              <h3 className="text-4xl font-black tracking-tighter tabular-nums">
+                 {totalCardsOutstanding.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}
+                 <span className="text-xl ml-1 text-white/60">€</span>
+              </h3>
+            </div>
+            <div className="mt-4 flex items-center space-x-2 text-white/80 font-black uppercase text-[9px] tracking-widest">
+              <TrendingDown size={12} />
+              <span>Global mois en cours</span>
+            </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -288,5 +353,14 @@ const Cards: React.FC = () => {
     </div>
   );
 };
+
+const SortHeader: React.FC<{ label: string, active?: boolean, onClick: () => void, className?: string }> = ({ label, active, onClick, className }) => (
+  <th className={`cursor-pointer hover:bg-slate-100/50 transition-all border-b ${className || ''}`} onClick={onClick}>
+    <div className={`flex items-center space-x-1 ${className?.includes('right') ? 'justify-end' : className?.includes('center') ? 'justify-center' : ''}`}>
+      <span className="whitespace-nowrap">{label}</span>
+      <ArrowUpDown size={10} className={active ? 'text-blue-500' : 'text-slate-300'} />
+    </div>
+  </th>
+);
 
 export default Cards;

@@ -1,8 +1,8 @@
 
-import React, { useContext, useState, useMemo } from 'react';
+import React, { useContext, useState, useMemo, useRef } from 'react';
 import { AppContext } from '../App';
 import { BankAccount, Transaction, ReconciliationMarker, TransactionType, Frequency, AppContextType } from '../types';
-import { Plus, Trash2, Edit2, X, Info, ArrowRight, ArrowUpDown, Target, Repeat, Wallet, CreditCard, Check, Clock, Zap, RotateCcw, Landmark, TrendingUp } from 'lucide-react';
+import { Plus, Trash2, Edit2, X, Info, ArrowRight, ArrowUpDown, Target, Repeat, Wallet, CreditCard, Check, Clock, Zap, RotateCcw, Landmark, TrendingUp, ChevronUp, ChevronDown } from 'lucide-react';
 import IconPicker from './IconPicker';
 
 const Accounts: React.FC = () => {
@@ -12,6 +12,8 @@ const Accounts: React.FC = () => {
   const [showForm, setShowForm] = useState<'add' | 'edit' | null>(null);
   const [editingAccount, setEditingAccount] = useState<BankAccount | null>(null);
   const [showTransactionForm, setShowTransactionForm] = useState(false);
+  
+  const tableContainerRef = useRef<HTMLDivElement>(null);
   
   const [displayInitialBalance, setDisplayInitialBalance] = useState("");
   const [displayTAmount, setDisplayTAmount] = useState("");
@@ -38,6 +40,21 @@ const Accounts: React.FC = () => {
     reconciliation: ReconciliationMarker.NONE
   });
 
+  const scrollToTop = () => {
+    if (tableContainerRef.current) {
+      tableContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const scrollToBottom = () => {
+    if (tableContainerRef.current) {
+      tableContainerRef.current.scrollTo({ 
+        top: tableContainerRef.current.scrollHeight, 
+        behavior: 'smooth' 
+      });
+    }
+  };
+
   const formatDateDisplay = (dateStr: string) => {
     if (!dateStr) return '-';
     const [year, month, day] = dateStr.split('-');
@@ -61,25 +78,21 @@ const Accounts: React.FC = () => {
     }, acc.initialBalance);
   };
 
-  const calculateRemainingRecurring = (accId: string) => {
+  const totalCardsOutstandingApp = useMemo(() => {
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
-
-    return recurring
-      .filter(rec => !rec.isPaused && String(rec.sourceAccountId) === String(accId))
-      .reduce((sum, rec) => {
-        const hasPassed = transactions.some(t => {
-          const tDate = new Date(t.date);
-          return tDate.getMonth() === currentMonth && 
-                 tDate.getFullYear() === currentYear &&
-                 String(t.sourceAccountId) === String(rec.sourceAccountId) &&
-                 (Math.abs(t.expense - rec.amount) < 0.01 || Math.abs(t.revenue - rec.amount) < 0.01) &&
-                 t.description.toLowerCase().includes(rec.description.toLowerCase());
-        });
-        return hasPassed ? sum : sum + rec.amount;
-      }, 0);
-  };
+    
+    return transactions.reduce((sum, t) => {
+      const tDate = new Date(t.date);
+      if (t.paymentMethod.startsWith('Carte:') && 
+          tDate.getMonth() === currentMonth && 
+          tDate.getFullYear() === currentYear) {
+        return sum + t.expense;
+      }
+      return sum;
+    }, 0);
+  }, [transactions]);
 
   const selectedAccount = useMemo(() => 
     accounts.find((a: BankAccount) => String(a.id) === String(selectedAccountId)),
@@ -134,6 +147,41 @@ const Accounts: React.FC = () => {
       return { ...t, runningBalance: currentBalance };
     });
   }, [selectedAccount, transactions, sortConfig]);
+
+  const soldeRestantReel = useMemo(() => {
+    if (processedTransactions.length === 0) return selectedAccount?.initialBalance || 0;
+    return (processedTransactions[processedTransactions.length - 1] as any).runningBalance;
+  }, [processedTransactions, selectedAccount]);
+
+  const pointCValue = useMemo(() => {
+    const lastC = [...processedTransactions].reverse().find(t => t.reconciliation === ReconciliationMarker.C);
+    return lastC ? (lastC as any).runningBalance : (selectedAccount?.initialBalance || 0);
+  }, [processedTransactions, selectedAccount]);
+
+  const calculateRemainingRecurring = (accId: string) => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    return recurring
+      .filter(rec => !rec.isPaused && String(rec.sourceAccountId) === String(accId))
+      .reduce((sum, rec) => {
+        const hasPassed = transactions.some(t => {
+          const tDate = new Date(t.date);
+          return tDate.getMonth() === currentMonth && 
+                 tDate.getFullYear() === currentYear &&
+                 String(t.sourceAccountId) === String(rec.sourceAccountId) &&
+                 (Math.abs(t.expense - rec.amount) < 0.01 || Math.abs(t.revenue - rec.amount) < 0.01) &&
+                 t.description.toLowerCase().includes(rec.description.toLowerCase());
+        });
+        return hasPassed ? sum : sum + rec.amount;
+      }, 0);
+  };
+
+  const resteAPasserCeMois = useMemo(() => {
+    if (!selectedAccount) return 0;
+    return calculateRemainingRecurring(selectedAccount.id);
+  }, [selectedAccount, transactions, recurring]);
 
   const handleBulkReconcile = (marker: ReconciliationMarker) => {
     processedTransactions.forEach(t => {
@@ -320,24 +368,32 @@ const Accounts: React.FC = () => {
 
            <div className="w-full">
               {selectedAccount?.isPrincipal ? (
-                <div className="bg-gradient-to-br from-blue-600 via-indigo-600 to-pink-500 p-8 rounded-[3rem] shadow-2xl border border-white/10 relative overflow-hidden group">
-                  <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-8 items-center relative z-10">
-                    <div className="lg:col-span-2 space-y-8">
-                       <StatItem label="Solde Banque" value={selectedAccount?.bankBalanceManual || 0} isManual onManualChange={(val) => updateAccount({...selectedAccount!, bankBalanceManual: val})} isInGradient />
-                       <StatItem label="Différence" value={(selectedAccount?.bankBalanceManual || 0) - (selectedAccount?.cardOutstandingManual || 0)} highlight={ ((selectedAccount?.bankBalanceManual || 0) - (selectedAccount?.cardOutstandingManual || 0)) < 0 ? 'rose' : 'emerald' } isInGradient />
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  {/* ENCADRÉ GAUCHE (REDUIT) : BANQUE VS APPLI */}
+                  <div className="lg:col-span-8 bg-gradient-to-br from-blue-600 via-indigo-600 to-pink-500 p-8 rounded-[3rem] shadow-2xl border border-white/10 relative overflow-hidden group">
+                    <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-y-10 gap-x-8 items-start relative z-10">
+                      {/* RANG 1 : BANQUE */}
+                      <StatItem label="Solde Banque" value={selectedAccount?.bankBalanceManual || 0} isManual onManualChange={(val) => updateAccount({...selectedAccount!, bankBalanceManual: val})} isInGradient />
+                      <StatItem label="En-cours carte banque" value={selectedAccount?.cardOutstandingManual || 0} isManual onManualChange={(val) => updateAccount({...selectedAccount!, cardOutstandingManual: val})} isInGradient />
+                      <StatItem label="Différence banque" value={(selectedAccount?.bankBalanceManual || 0) - (selectedAccount?.cardOutstandingManual || 0)} highlight={ ((selectedAccount?.bankBalanceManual || 0) - (selectedAccount?.cardOutstandingManual || 0)) < 0 ? 'rose' : 'emerald' } isInGradient />
+                      
+                      {/* RANG 2 : APPLICATION */}
+                      <StatItem label="Solde Appli" value={pointCValue - totalCardsOutstandingApp} isInGradient />
+                      <StatItem label="Pointé (C)" value={pointCValue} highlight="blue" isInGradient />
+                      <StatItem label="En-cours carte appli" value={totalCardsOutstandingApp} highlight="rose" isInGradient />
                     </div>
-                    <div className="lg:col-span-2 space-y-8">
-                       <StatItem label="Encourt carte" value={selectedAccount?.cardOutstandingManual || 0} isManual onManualChange={(val) => updateAccount({...selectedAccount!, cardOutstandingManual: val})} isInGradient />
-                       <StatItem label="Pointé (C)" value={processedTransactions.find(t => t.reconciliation === ReconciliationMarker.C) ? (processedTransactions.find(t => t.reconciliation === ReconciliationMarker.C) as any).runningBalance : selectedAccount?.initialBalance || 0} highlight="blue" isInGradient />
-                    </div>
-                    <div className="hidden lg:block w-px bg-white/10 h-32 mx-auto self-center" />
-                    <div className="lg:col-span-2 space-y-8">
-                       <StatItem label="Solde Réel" value={calculateRealBalance(selectedAccount!)} isInGradient large />
-                       <div className="grid grid-cols-2 gap-4">
-                          <StatItem label="Passer (Rec)" value={calculateRemainingRecurring(selectedAccount!.id)} highlight="rose" isInGradient />
-                          <StatItem label="Vivre" value={calculateRealBalance(selectedAccount!) - calculateRemainingRecurring(selectedAccount!.id)} highlight="emerald" isInGradient />
-                       </div>
+                  </div>
+
+                  {/* ENCADRÉ DROITE : SOLDE RESTANT RÉEL & PRÉVISIONNEL */}
+                  <div className="lg:col-span-4 bg-gradient-to-br from-indigo-700 via-purple-600 to-pink-600 p-8 rounded-[3rem] shadow-2xl border border-white/10 relative overflow-hidden group">
+                    <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+                    <div className="flex flex-col justify-between h-full space-y-10 relative z-10">
+                      <StatItem label="Solde restant réel" value={soldeRestantReel} isInGradient large />
+                      <div className="grid grid-cols-2 gap-4">
+                        <StatItem label="Reste à passer" value={resteAPasserCeMois} highlight="rose" isInGradient />
+                        <StatItem label="Reste à vivre" value={soldeRestantReel - resteAPasserCeMois} highlight="emerald" isInGradient />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -348,92 +404,115 @@ const Accounts: React.FC = () => {
               )}
            </div>
 
-           <div className="bg-white rounded-[3rem] border border-slate-100 shadow-2xl overflow-hidden mt-8 max-h-[600px] overflow-y-auto custom-table-scroll">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-[11px] relative border-collapse min-w-[1200px]">
-                  <thead className="bg-slate-50 text-slate-500 uppercase font-black tracking-widest border-b border-slate-100 sticky top-0 z-20">
-                    <tr>
-                      <SortHeader label="Date" active={sortConfig.key === 'date'} onClick={() => requestSort('date')} />
-                      <SortHeader label="Catégories" active={sortConfig.key === 'categoryId'} onClick={() => requestSort('categoryId')} />
-                      <SortHeader label="Sous catégories" active={sortConfig.key === 'subCategory'} onClick={() => requestSort('subCategory')} />
-                      <SortHeader label="Descriptifs" active={sortConfig.key === 'description'} onClick={() => requestSort('description')} />
-                      <SortHeader label="Moyen de paiement" active={sortConfig.key === 'paymentMethod'} onClick={() => requestSort('paymentMethod')} className="min-w-[180px] px-8" />
-                      <SortHeader label="Revenus" className="text-right" active={sortConfig.key === 'revenue'} onClick={() => requestSort('revenue')} />
-                      <SortHeader label="Dépenses" className="text-right" active={sortConfig.key === 'expense'} onClick={() => requestSort('expense')} />
-                      <SortHeader label="Solde restant" className="text-right" active={sortConfig.key === 'runningBalance'} onClick={() => requestSort('runningBalance')} />
-                      <th className="px-6 py-5 border-b text-center">
-                        <div className="flex flex-col items-center space-y-2">
-                            <span className="flex items-center space-x-1 justify-center whitespace-nowrap">
-                                <span>Pointage</span>
-                                <ArrowUpDown size={10} className={sortConfig.key === 'reconciliation' ? 'text-blue-500' : 'text-slate-300'} onClick={() => requestSort('reconciliation')} />
-                            </span>
-                            <div className="flex items-center space-x-1">
-                                <button 
-                                    onClick={() => handleBulkReconcile(ReconciliationMarker.GREEN_CHECK)} 
-                                    title="Tout valider (✅)"
-                                    className="p-1.5 bg-emerald-100 text-emerald-600 rounded-lg hover:bg-emerald-200 transition-all"
+           <div className="relative group/table">
+              {/* BOUTONS DE NAVIGATION VIOLETS */}
+              <div className="absolute -left-12 top-0 bottom-0 flex flex-col justify-center space-y-4 opacity-0 group-hover/table:opacity-100 transition-opacity duration-300">
+                <button 
+                  onClick={scrollToTop}
+                  className="p-3 bg-violet-600 text-white rounded-full shadow-lg hover:bg-violet-700 hover:scale-110 active:scale-95 transition-all"
+                  title="Retourner vers le haut"
+                >
+                  <ChevronUp size={20} strokeWidth={3} />
+                </button>
+                <button 
+                  onClick={scrollToBottom}
+                  className="p-3 bg-violet-600 text-white rounded-full shadow-lg hover:bg-violet-700 hover:scale-110 active:scale-95 transition-all"
+                  title="Descendre vers le bas"
+                >
+                  <ChevronDown size={20} strokeWidth={3} />
+                </button>
+              </div>
+
+              <div 
+                ref={tableContainerRef}
+                className="bg-white rounded-[3rem] border border-slate-100 shadow-2xl overflow-hidden mt-8 max-h-[600px] overflow-y-auto custom-table-scroll relative"
+              >
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-[11px] relative border-collapse min-w-[1200px]">
+                    <thead className="bg-slate-50 text-slate-500 uppercase font-black tracking-widest border-b border-slate-100 sticky top-0 z-20 shadow-sm">
+                      <tr>
+                        <SortHeader label="Date" active={sortConfig.key === 'date'} onClick={() => requestSort('date')} className="py-3 px-6" />
+                        <SortHeader label="Catégories" active={sortConfig.key === 'categoryId'} onClick={() => requestSort('categoryId')} className="py-3 px-6" />
+                        <SortHeader label="Sous catégories" active={sortConfig.key === 'subCategory'} onClick={() => requestSort('subCategory')} className="py-3 px-6" />
+                        <SortHeader label="Descriptifs" active={sortConfig.key === 'description'} onClick={() => requestSort('description')} className="py-3 px-6" />
+                        <SortHeader label="Moyen de paiement" active={sortConfig.key === 'paymentMethod'} onClick={() => requestSort('paymentMethod')} className="min-w-[180px] px-8 py-3" />
+                        <SortHeader label="Revenus" className="text-right py-3" active={sortConfig.key === 'revenue'} onClick={() => requestSort('revenue')} />
+                        <SortHeader label="Dépenses" className="text-right py-3" active={sortConfig.key === 'expense'} onClick={() => requestSort('expense')} />
+                        <SortHeader label="Solde restant" className="text-right py-3" active={sortConfig.key === 'runningBalance'} onClick={() => requestSort('runningBalance')} />
+                        <th className="px-6 py-2 border-b text-center">
+                          <div className="flex flex-col items-center space-y-1">
+                              <span className="flex items-center space-x-1 justify-center whitespace-nowrap text-[9px]">
+                                  <span>Pointage</span>
+                                  <ArrowUpDown size={8} className={sortConfig.key === 'reconciliation' ? 'text-blue-500' : 'text-slate-300'} onClick={() => requestSort('reconciliation')} />
+                              </span>
+                              <div className="flex items-center space-x-1">
+                                  <button 
+                                      onClick={() => handleBulkReconcile(ReconciliationMarker.GREEN_CHECK)} 
+                                      title="Tout valider (✅)"
+                                      className="p-1 bg-emerald-100 text-emerald-600 rounded-md hover:bg-emerald-200 transition-all"
+                                  >
+                                      <Check size={10} strokeWidth={4} />
+                                  </button>
+                                  <button 
+                                      onClick={() => handleBulkReconcile(ReconciliationMarker.NONE)} 
+                                      title="Tout réinitialiser (-)"
+                                      className="p-1 bg-slate-100 text-slate-400 rounded-md hover:bg-slate-200 transition-all"
+                                  >
+                                      <RotateCcw size={10} strokeWidth={4} />
+                                  </button>
+                              </div>
+                          </div>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {processedTransactions.map((t) => {
+                        const cat = categories.find((c: any) => String(c.id) === String(t.categoryId));
+                        return (
+                          <tr key={t.id} className="hover:bg-slate-50/50 transition-colors group">
+                            <td className="px-6 py-5 whitespace-nowrap text-slate-400 font-bold">{formatDateDisplay(t.date)}</td>
+                            <td className="px-6 py-5 font-black text-slate-700 uppercase tracking-tighter whitespace-nowrap">
+                              <span className="mr-2 text-base">{cat?.icon}</span>{cat?.name || 'Virement'}
+                            </td>
+                            <td className="px-6 py-5 text-slate-400 uppercase font-medium whitespace-nowrap">{t.subCategory || '-'}</td>
+                            <td className="px-6 py-5 text-slate-600 font-bold truncate max-w-[180px]">{t.description}</td>
+                            <td className="px-8 py-5 whitespace-nowrap">
+                               <div className="flex">
+                                 <span className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg font-black uppercase text-[9px] tracking-tight shadow-sm border border-slate-200/50">
+                                   {t.paymentMethod}
+                                 </span>
+                               </div>
+                            </td>
+                            <td className="px-6 py-5 text-right font-black text-emerald-500 text-sm whitespace-nowrap">
+                              {t.revenue > 0 ? `+${t.revenue.toFixed(2)}€` : '-'}
+                            </td>
+                            <td className="px-6 py-5 text-right font-black text-rose-500 text-sm whitespace-nowrap">
+                              {t.expense > 0 ? `-${t.expense.toFixed(2)}€` : '-'}
+                            </td>
+                            <td className={`px-6 py-5 text-right font-black bg-slate-50/20 ${t.runningBalance < 0 ? 'text-rose-600' : 'text-slate-900'} text-sm whitespace-nowrap`}>
+                              {(t as any).runningBalance.toFixed(2)}€
+                            </td>
+                            <td className="px-6 py-5 text-center">
+                              <select 
+                                  className={`text-[9px] font-black border-2 border-slate-200 rounded-xl px-3 py-1.5 bg-white outline-none cursor-pointer focus:ring-0 text-slate-900 transition-all hover:border-blue-300`}
+                                  value={t.reconciliation}
+                                  onChange={(e) => handleUpdateReconciliation(t, e.target.value as ReconciliationMarker)}
                                 >
-                                    <Check size={12} strokeWidth={3} />
-                                </button>
-                                <button 
-                                    onClick={() => handleBulkReconcile(ReconciliationMarker.NONE)} 
-                                    title="Tout réinitialiser (-)"
-                                    className="p-1.5 bg-slate-100 text-slate-400 rounded-lg hover:bg-slate-200 transition-all"
-                                >
-                                    <RotateCcw size={12} strokeWidth={3} />
-                                </button>
-                            </div>
-                        </div>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {processedTransactions.map((t) => {
-                      const cat = categories.find((c: any) => String(c.id) === String(t.categoryId));
-                      return (
-                        <tr key={t.id} className="hover:bg-slate-50/50 transition-colors group">
-                          <td className="px-6 py-5 whitespace-nowrap text-slate-400 font-bold">{formatDateDisplay(t.date)}</td>
-                          <td className="px-6 py-5 font-black text-slate-700 uppercase tracking-tighter whitespace-nowrap">
-                            <span className="mr-2 text-base">{cat?.icon}</span>{cat?.name || 'Virement'}
-                          </td>
-                          <td className="px-6 py-5 text-slate-400 uppercase font-medium whitespace-nowrap">{t.subCategory || '-'}</td>
-                          <td className="px-6 py-5 text-slate-600 font-bold truncate max-w-[180px]">{t.description}</td>
-                          <td className="px-8 py-5 whitespace-nowrap">
-                             <div className="flex">
-                               <span className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg font-black uppercase text-[9px] tracking-tight shadow-sm border border-slate-200/50">
-                                 {t.paymentMethod}
-                               </span>
-                             </div>
-                          </td>
-                          <td className="px-6 py-5 text-right font-black text-emerald-500 text-sm whitespace-nowrap">
-                            {t.revenue > 0 ? `+${t.revenue.toFixed(2)}€` : '-'}
-                          </td>
-                          <td className="px-6 py-5 text-right font-black text-rose-500 text-sm whitespace-nowrap">
-                            {t.expense > 0 ? `-${t.expense.toFixed(2)}€` : '-'}
-                          </td>
-                          <td className={`px-6 py-5 text-right font-black bg-slate-50/20 ${t.runningBalance < 0 ? 'text-rose-600' : 'text-slate-900'} text-sm whitespace-nowrap`}>
-                            {(t as any).runningBalance.toFixed(2)}€
-                          </td>
-                          <td className="px-6 py-5 text-center">
-                            <select 
-                                className={`text-[9px] font-black border-2 border-slate-200 rounded-xl px-3 py-1.5 bg-white outline-none cursor-pointer focus:ring-0 text-slate-900 transition-all hover:border-blue-300`}
-                                value={t.reconciliation}
-                                onChange={(e) => handleUpdateReconciliation(t, e.target.value as ReconciliationMarker)}
-                              >
-                                <option value={ReconciliationMarker.NONE}>-</option>
-                                <option value={ReconciliationMarker.GREEN_CHECK}>✅ Check</option>
-                                <option value={ReconciliationMarker.G}>G</option>
-                                <option value={ReconciliationMarker.G2}>G2</option>
-                                <option value={ReconciliationMarker.D}>D</option>
-                                <option value={ReconciliationMarker.D2}>D2</option>
-                                <option value={ReconciliationMarker.C}>C</option>
-                            </select>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                                  <option value={ReconciliationMarker.NONE}>-</option>
+                                  <option value={ReconciliationMarker.GREEN_CHECK}>✅ Check</option>
+                                  <option value={ReconciliationMarker.G}>G</option>
+                                  <option value={ReconciliationMarker.G2}>G2</option>
+                                  <option value={ReconciliationMarker.D}>D</option>
+                                  <option value={ReconciliationMarker.D2}>D2</option>
+                                  <option value={ReconciliationMarker.C}>C</option>
+                              </select>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
            </div>
         </div>
@@ -480,9 +559,9 @@ const Accounts: React.FC = () => {
               {(tFormData.type === TransactionType.TRANSFER || tFormData.type === TransactionType.GOAL_DEPOSIT) ? (
                 <div className="space-y-1 animate-in slide-in-from-top duration-200">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Compte Destinataire</label>
-                  <select required className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl outline-none font-bold uppercase" value={tFormData.destinationAccountId} onChange={e => setTFormData({...tFormData, destinationAccountId: e.target.value})}>
+                  <select required className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl outline-none font-bold uppercase" value={tFormData.destinationAccountId} onChange={e => setFormData({...formData, destinationAccountId: e.target.value})}>
                     <option value="">Sélectionner...</option>
-                    {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                    {accounts.map((a:any) => <option key={a.id} value={a.id}>{a.name}</option>)}
                   </select>
                 </div>
               ) : (
@@ -673,7 +752,7 @@ const StatItem: React.FC<{ label: string, value: number, isManual?: boolean, hig
 };
 
 const SortHeader: React.FC<{ label: string, active?: boolean, onClick: () => void, className?: string }> = ({ label, active, onClick, className }) => (
-  <th className={`px-6 py-5 border-b cursor-pointer hover:bg-slate-100/50 transition-all ${className || ''}`} onClick={onClick}>
+  <th className={`cursor-pointer hover:bg-slate-100/50 transition-all border-b ${className || ''}`} onClick={onClick}>
     <div className={`flex items-center space-x-1 ${className?.includes('right') ? 'justify-end' : className?.includes('center') ? 'justify-center' : ''}`}>
       <span className="whitespace-nowrap">{label}</span>
       <ArrowUpDown size={10} className={active ? 'text-blue-500' : 'text-slate-300'} />
