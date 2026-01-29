@@ -559,7 +559,7 @@ const Accounts: React.FC = () => {
               {(tFormData.type === TransactionType.TRANSFER || tFormData.type === TransactionType.GOAL_DEPOSIT) ? (
                 <div className="space-y-1 animate-in slide-in-from-top duration-200">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Compte Destinataire</label>
-                  <select required className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl outline-none font-bold uppercase" value={tFormData.destinationAccountId} onChange={e => setFormData({...formData, destinationAccountId: e.target.value})}>
+                  <select required className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl outline-none font-bold uppercase" value={tFormData.destinationAccountId} onChange={e => setTFormData({...tFormData, destinationAccountId: e.target.value})}>
                     <option value="">Sélectionner...</option>
                     {accounts.map((a:any) => <option key={a.id} value={a.id}>{a.name}</option>)}
                   </select>
